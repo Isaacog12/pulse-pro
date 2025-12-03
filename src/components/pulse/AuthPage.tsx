@@ -5,16 +5,15 @@ import { Input } from "@/components/ui/input";
 import { PulseLogo } from "./PulseLogo";
 import { WaveLoader } from "./WaveLoader";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-interface AuthPageProps {
-  onLogin: (user: { name: string; email: string }) => void;
-}
-
-export const AuthPage = ({ onLogin }: AuthPageProps) => {
+export const AuthPage = () => {
+  const { signIn, signUp } = useAuth();
   const [view, setView] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -23,18 +22,43 @@ export const AuthPage = ({ onLogin }: AuthPageProps) => {
     setLoading(true);
 
     if (view === "forgot") {
-      await new Promise((r) => setTimeout(r, 1000));
+      // Password reset would go here
       setResetSent(true);
       setLoading(false);
       return;
     }
 
-    // Simulate auth
-    await new Promise((r) => setTimeout(r, 1500));
-    onLogin({
-      name: view === "signup" ? name : email.split("@")[0],
-      email,
-    });
+    try {
+      if (view === "signup") {
+        if (!username.trim()) {
+          toast.error("Please enter a username");
+          setLoading(false);
+          return;
+        }
+        const { error } = await signUp(email, password, username);
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast.error("This email is already registered. Please log in.");
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success("Account created! You are now logged in.");
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password");
+          } else {
+            toast.error(error.message);
+          }
+        }
+      }
+    } catch (err) {
+      toast.error("An unexpected error occurred");
+    }
+    
     setLoading(false);
   };
 
@@ -105,8 +129,8 @@ export const AuthPage = ({ onLogin }: AuthPageProps) => {
                     type="text"
                     placeholder="Username"
                     className="pl-12"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required={view === "signup"}
                   />
                 </div>
@@ -142,6 +166,7 @@ export const AuthPage = ({ onLogin }: AuthPageProps) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    minLength={6}
                   />
                 </div>
                 {view === "login" && (
