@@ -3,6 +3,9 @@ import { X, Image, Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WaveLoader } from "./WaveLoader";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const FILTERS = [
   { name: "Normal", class: "" },
@@ -15,10 +18,11 @@ const FILTERS = [
 
 interface CreatePostModalProps {
   onClose: () => void;
-  onPost: (imageData: string, caption: string, filter: string) => void;
+  onPostCreated: () => void;
 }
 
-export const CreatePostModal = ({ onClose, onPost }: CreatePostModalProps) => {
+export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
+  const { user } = useAuth();
   const [step, setStep] = useState<"select" | "edit" | "caption">("select");
   const [imageData, setImageData] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState(FILTERS[0]);
@@ -39,12 +43,26 @@ export const CreatePostModal = ({ onClose, onPost }: CreatePostModalProps) => {
   };
 
   const handlePost = async () => {
-    if (!imageData) return;
+    if (!imageData || !user) return;
+    
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000)); // Simulate upload
-    onPost(imageData, caption, selectedFilter.class);
+    
+    const { error } = await supabase.from("posts").insert({
+      user_id: user.id,
+      image_url: imageData,
+      caption: caption.trim() || null,
+      filter: selectedFilter.class || null,
+    });
+
+    if (error) {
+      toast.error("Failed to create post");
+    } else {
+      toast.success("Post shared!");
+      onPostCreated();
+      onClose();
+    }
+    
     setLoading(false);
-    onClose();
   };
 
   return (
@@ -92,10 +110,6 @@ export const CreatePostModal = ({ onClose, onPost }: CreatePostModalProps) => {
                 <Button variant="gradient" onClick={() => fileInputRef.current?.click()}>
                   <Image size={18} className="mr-2" />
                   Select from Gallery
-                </Button>
-                <Button variant="outline">
-                  <Camera size={18} className="mr-2" />
-                  Take Photo
                 </Button>
               </div>
               <input
@@ -170,12 +184,6 @@ export const CreatePostModal = ({ onClose, onPost }: CreatePostModalProps) => {
                   className="w-full h-40 bg-transparent border-none resize-none focus:outline-none text-foreground placeholder:text-muted-foreground"
                   autoFocus
                 />
-                <div className="flex items-center gap-2 pt-4 border-t border-border">
-                  <Button variant="ghost" size="sm">
-                    <Sparkles size={16} className="mr-2 text-accent" />
-                    AI Caption
-                  </Button>
-                </div>
               </div>
             </div>
           )}
