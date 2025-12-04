@@ -56,7 +56,7 @@ export const AuthPage = () => {
         }
       }
     } catch (err) {
-      toast.error("An unexpected error occurred");
+      toast.error("An unexpected error occurred try again later");
     }
     
     setLoading(false);
