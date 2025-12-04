@@ -29,7 +29,7 @@ interface Post {
 interface PostCardProps {
   post: Post;
   currentUserId: string;
-  onViewComments: (post: Post) => void;
+  onViewComments: () => void;
   onPostDeleted?: () => void;
 }
 
@@ -60,6 +60,16 @@ export const PostCard = ({
       setLikeAnim(true);
       setTimeout(() => setLikeAnim(false), 1000);
       await supabase.from("likes").insert({ post_id: post.id, user_id: currentUserId });
+      
+      // Create notification for post owner (if not self)
+      if (post.user_id !== currentUserId) {
+        await supabase.from("notifications").insert({
+          user_id: post.user_id,
+          from_user_id: currentUserId,
+          type: "like",
+          post_id: post.id,
+        });
+      }
     } else {
       await supabase.from("likes").delete().eq("post_id", post.id).eq("user_id", currentUserId);
     }
@@ -191,7 +201,7 @@ export const PostCard = ({
             <Button
               variant="icon"
               size="icon"
-              onClick={() => onViewComments(post)}
+              onClick={onViewComments}
               className="transition-transform active:scale-125 hover:text-primary"
             >
               <MessageSquare size={28} />
@@ -211,7 +221,7 @@ export const PostCard = ({
           {post.caption}
         </div>
         <button
-          onClick={() => onViewComments(post)}
+          onClick={onViewComments}
           className="text-muted-foreground text-sm font-medium hover:text-foreground transition-colors"
         >
           View all {post.comments_count} comments

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Settings, CheckCircle, Grid, Bookmark, Zap, Edit3, Camera, LogOut } from "lucide-react";
+import { Settings, CheckCircle, Grid, Bookmark, Zap, Edit3, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { EditProfileModal } from "./EditProfileModal";
 
 interface UserProfileProps {
   onOpenSettings: () => void;
@@ -14,6 +15,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
   const [activeTab, setActiveTab] = useState<"posts" | "saved">("posts");
   const [posts, setPosts] = useState<any[]>([]);
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
@@ -133,7 +135,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
               </div>
             </div>
 
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
               <Edit3 size={16} className="mr-2" />
               Edit Profile
             </Button>
@@ -181,6 +183,15 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
           <p className="text-lg font-medium">No posts yet</p>
           <p className="text-sm">Start sharing your moments!</p>
         </div>
+      )}
+
+      {showEditModal && (
+        <EditProfileModal
+          onClose={() => setShowEditModal(false)}
+          onProfileUpdated={() => {
+            fetchUserPosts();
+          }}
+        />
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { PostCard } from "@/components/pulse/PostCard";
 import { CommentsSheet } from "@/components/pulse/CommentsSheet";
 import { UserProfile } from "@/components/pulse/UserProfile";
 import { CreatePostModal } from "@/components/pulse/CreatePostModal";
+import { NotificationsView } from "@/components/pulse/NotificationsView";
 import { PulseLogo } from "@/components/pulse/PulseLogo";
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
@@ -269,10 +270,7 @@ const Index = () => {
 
           {currentView === "notifications" && (
             <div className="p-4">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Notifications</h2>
-              <div className="text-center text-muted-foreground py-16">
-                <p>No new notifications</p>
-              </div>
+              <NotificationsView />
             </div>
           )}
 
