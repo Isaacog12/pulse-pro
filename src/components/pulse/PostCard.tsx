@@ -29,7 +29,7 @@ interface Post {
 interface PostCardProps {
   post: Post;
   currentUserId: string;
-  onViewComments: (post: Post) => void;
+  onViewComments: () => void;
   onPostDeleted?: () => void;
 }
 
@@ -191,7 +191,7 @@ export const PostCard = ({
             <Button
               variant="icon"
               size="icon"
-              onClick={() => onViewComments(post)}
+              onClick={onViewComments}
               className="transition-transform active:scale-125 hover:text-primary"
             >
               <MessageSquare size={28} />
@@ -211,7 +211,7 @@ export const PostCard = ({
           {post.caption}
         </div>
         <button
-          onClick={() => onViewComments(post)}
+          onClick={onViewComments}
           className="text-muted-foreground text-sm font-medium hover:text-foreground transition-colors"
         >
           View all {post.comments_count} comments
