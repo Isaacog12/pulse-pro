@@ -43,7 +43,7 @@ export const AuthPage = () => {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created! You are now logged in.");
+          toast.success("Account created! Please check your email to activate your account.");
         }
       } else {
         const { error } = await signIn(email, password);
