@@ -83,15 +83,36 @@ export const CommentsSheet = ({ postId, onClose }: CommentsSheetProps) => {
 
     setSubmitting(true);
     
-    const { error } = await supabase.from("comments").insert({
-      user_id: user.id,
-      post_id: postId,
-      text: comment.trim(),
-    });
+    const { data: newComment, error } = await supabase
+      .from("comments")
+      .insert({
+        user_id: user.id,
+        post_id: postId,
+        text: comment.trim(),
+      })
+      .select()
+      .single();
 
     if (error) {
       toast.error("Failed to post comment");
     } else {
+      // Create notification for post owner
+      const { data: post } = await supabase
+        .from("posts")
+        .select("user_id")
+        .eq("id", postId)
+        .single();
+
+      if (post && post.user_id !== user.id) {
+        await supabase.from("notifications").insert({
+          user_id: post.user_id,
+          from_user_id: user.id,
+          type: "comment",
+          post_id: postId,
+          comment_id: newComment?.id,
+          message: comment.trim().substring(0, 50),
+        });
+      }
       setComment("");
     }
     
