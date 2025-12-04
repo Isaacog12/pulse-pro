@@ -38,7 +38,7 @@ export const AuthPage = () => {
         const { error } = await signUp(email, password, username);
         if (error) {
           if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please log in.");
+            toast.error("This email is already registered and is in use. Please log in.");
           } else {
             toast.error(error.message);
           }
