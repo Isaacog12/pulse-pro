@@ -239,7 +239,7 @@ const Index = () => {
                       key={post.id}
                       post={post}
                       currentUserId={user.id}
-                      onViewComments={(p) => setSelectedPostId(p.id)}
+                      onViewComments={() => setSelectedPostId(post.id)}
                       onPostDeleted={fetchPosts}
                     />
                   ))
