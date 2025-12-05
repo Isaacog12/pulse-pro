@@ -8,12 +8,16 @@ import { UserProfile } from "@/components/pulse/UserProfile";
 import { CreatePostModal } from "@/components/pulse/CreatePostModal";
 import { NotificationsView } from "@/components/pulse/NotificationsView";
 import { SettingsView } from "@/components/pulse/SettingsView";
+import { MessagesView } from "@/components/pulse/MessagesView";
+import { ChatView } from "@/components/pulse/ChatView";
+import { UserSearchModal } from "@/components/pulse/UserSearchModal";
+import { ExploreView } from "@/components/pulse/ExploreView";
 import { PulseLogo } from "@/components/pulse/PulseLogo";
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings";
+type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings" | "messages";
 
 interface Post {
   id: string;
@@ -57,6 +61,11 @@ const Index = () => {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [activeChat, setActiveChat] = useState<{
+    conversationId: string;
+    otherUser: { id: string; username: string; avatar_url: string | null };
+  } | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -258,14 +267,28 @@ const Index = () => {
 
           {currentView === "explore" && (
             <div className="p-4">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Explore</h2>
-              <div className="grid grid-cols-3 gap-1">
-                {posts.map((post) => (
-                  <div key={post.id} className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg">
-                    <img src={post.image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
-                  </div>
-                ))}
-              </div>
+              <ExploreView posts={posts} />
+            </div>
+          )}
+
+          {currentView === "messages" && !activeChat && (
+            <div className="p-4">
+              <MessagesView
+                onSelectConversation={(convId, otherUser) =>
+                  setActiveChat({ conversationId: convId, otherUser })
+                }
+                onNewMessage={() => setShowNewMessageModal(true)}
+              />
+            </div>
+          )}
+
+          {currentView === "messages" && activeChat && (
+            <div className="p-4">
+              <ChatView
+                conversationId={activeChat.conversationId}
+                otherUser={activeChat.otherUser}
+                onBack={() => setActiveChat(null)}
+              />
             </div>
           )}
 
@@ -323,6 +346,21 @@ const Index = () => {
           onPostCreated={() => {
             fetchPosts();
             setShowCreateModal(false);
+          }}
+        />
+      )}
+
+      {/* New Message Modal */}
+      {showNewMessageModal && (
+        <UserSearchModal
+          onClose={() => setShowNewMessageModal(false)}
+          onStartChat={(convId, user) => {
+            setShowNewMessageModal(false);
+            setActiveChat({
+              conversationId: convId,
+              otherUser: { id: user.id, username: user.username, avatar_url: user.avatar_url },
+            });
+            setCurrentView("messages");
           }}
         />
       )}
