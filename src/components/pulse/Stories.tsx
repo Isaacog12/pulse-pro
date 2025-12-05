@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { Plus, Camera, Image as ImageIcon } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { StoryViewer } from "./StoryViewer";
 
 interface Story {
   id: string;
@@ -22,6 +23,7 @@ interface StoriesProps {
 }
 
 export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
+  const [viewingStoryIndex, setViewingStoryIndex] = useState<number | null>(null);
   const { user, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showOptions, setShowOptions] = useState(false);
@@ -114,10 +116,11 @@ export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
       </div>
 
       {/* Story Items */}
-      {Object.values(groupedStories).map((story) => (
+      {Object.values(groupedStories).map((story, index) => (
         <div
           key={story.id}
           className="flex flex-col items-center flex-shrink-0 cursor-pointer transition-transform hover:scale-105"
+          onClick={() => setViewingStoryIndex(stories.findIndex(s => s.id === story.id))}
         >
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-2xl bg-gradient-pulse">
             <div className="bg-background w-full h-full rounded-[14px] overflow-hidden border-2 border-background">
@@ -138,6 +141,15 @@ export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
         <div className="flex items-center justify-center text-muted-foreground text-sm py-4">
           No stories yet. Be the first!
         </div>
+      )}
+
+      {/* Story Viewer Modal */}
+      {viewingStoryIndex !== null && (
+        <StoryViewer
+          stories={stories}
+          initialIndex={viewingStoryIndex}
+          onClose={() => setViewingStoryIndex(null)}
+        />
       )}
     </div>
   );
