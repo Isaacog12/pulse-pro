@@ -1,6 +1,6 @@
--- =========================================
+-- ============================================
 -- 1️⃣ Conversations Table
--- =========================================
+-- ============================================
 CREATE TABLE IF NOT EXISTS public.conversations (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   creator_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS public.conversations (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- =========================================
+-- ============================================
 -- 2️⃣ Conversation Participants Table
--- =========================================
+-- ============================================
 CREATE TABLE IF NOT EXISTS public.conversation_participants (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS public.conversation_participants (
   UNIQUE(conversation_id, user_id)
 );
 
--- =========================================
+-- ============================================
 -- 3️⃣ Messages Table
--- =========================================
+-- ============================================
 CREATE TABLE IF NOT EXISTS public.messages (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
@@ -31,16 +31,9 @@ CREATE TABLE IF NOT EXISTS public.messages (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- =========================================
--- 4️⃣ Enable Row Level Security
--- =========================================
-ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-
--- =========================================
--- 5️⃣ Function to check membership
--- =========================================
+-- ============================================
+-- 4️⃣ Function: Check Conversation Membership
+-- ============================================
 CREATE OR REPLACE FUNCTION public.is_conversation_member(_conversation_id UUID, _user_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -51,75 +44,100 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.conversation_participants
-    WHERE conversation_id = _conversation_id
-      AND user_id = _user_id
+    WHERE conversation_id = _conversation_id AND user_id = _user_id
   );
 $$;
 
--- Allow auth roles to use it
 GRANT EXECUTE ON FUNCTION public.is_conversation_member(UUID, UUID) TO authenticated, anon;
 
--- =========================================
--- 6️⃣ RLS Policies
--- =========================================
+-- ============================================
+-- 5️⃣ Function: Create Private Conversation (auto-add participants)
+-- ============================================
+CREATE OR REPLACE FUNCTION public.create_private_conversation(_user1 UUID, _user2 UUID)
+RETURNS TABLE(conversation_id UUID)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  conv_id UUID;
+BEGIN
+  INSERT INTO public.conversations (creator_id) VALUES (_user1) RETURNING id INTO conv_id;
+  INSERT INTO public.conversation_participants (conversation_id, user_id) VALUES
+    (conv_id, _user1),
+    (conv_id, _user2);
+  RETURN QUERY SELECT conv_id;
+END;
+$$;
 
--- Conversations
-CREATE POLICY IF NOT EXISTS "Users can view conversations"
+GRANT EXECUTE ON FUNCTION public.create_private_conversation(UUID, UUID) TO authenticated, anon;
+
+-- ============================================
+-- 6️⃣ Enable Row Level Security (RLS)
+-- ============================================
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- 7️⃣ RLS Policies: Conversations
+-- ============================================
+CREATE POLICY "Users can view conversations they are part of or created"
 ON public.conversations FOR SELECT
-USING (public.is_conversation_member(id, auth.uid()));
+USING (
+  public.is_conversation_member(id, auth.uid()) OR creator_id = auth.uid()
+);
 
-CREATE POLICY IF NOT EXISTS "Users can create conversations"
+CREATE POLICY "Users can create conversations"
 ON public.conversations FOR INSERT
 WITH CHECK (creator_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Creators can update conversations"
+CREATE POLICY "Creators can update their conversations"
 ON public.conversations FOR UPDATE
 USING (creator_id = auth.uid())
 WITH CHECK (creator_id = auth.uid());
 
--- Conversation Participants
-CREATE POLICY IF NOT EXISTS "Users can view participants"
+-- ============================================
+-- 8️⃣ RLS Policies: Conversation Participants
+-- ============================================
+CREATE POLICY "Users can view participants of their conversations"
 ON public.conversation_participants FOR SELECT
 USING (public.is_conversation_member(conversation_id, auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Users can add themselves as participants"
+CREATE POLICY "Users can add themselves as participants"
 ON public.conversation_participants FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Users can leave conversation"
+CREATE POLICY "Users can delete their own participant row"
 ON public.conversation_participants FOR DELETE
 USING (auth.uid() = user_id);
 
--- Messages
-CREATE POLICY IF NOT EXISTS "Users can view messages"
+-- ============================================
+-- 9️⃣ RLS Policies: Messages
+-- ============================================
+CREATE POLICY "Users can view messages in their conversations"
 ON public.messages FOR SELECT
 USING (public.is_conversation_member(conversation_id, auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Users can send messages"
+CREATE POLICY "Users can send messages to their conversations"
 ON public.messages FOR INSERT
 WITH CHECK (
-  auth.uid() = sender_id
-  AND public.is_conversation_member(conversation_id, auth.uid())
+  auth.uid() = sender_id AND public.is_conversation_member(conversation_id, auth.uid())
 );
 
-CREATE POLICY IF NOT EXISTS "Users can update messages"
+CREATE POLICY "Users can update messages they sent"
 ON public.messages FOR UPDATE
 USING (auth.uid() = sender_id)
 WITH CHECK (auth.uid() = sender_id);
 
-CREATE POLICY IF NOT EXISTS "Users can delete messages"
-ON public.messages FOR DELETE
-USING (auth.uid() = sender_id);
-
--- =========================================
--- 7️⃣ Realtime Publication
--- =========================================
+-- ============================================
+-- 🔟 Realtime
+-- ============================================
 CREATE PUBLICATION IF NOT EXISTS supabase_realtime;
 ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.messages;
 
--- =========================================
--- 8️⃣ Indexes for performance
--- =========================================
+-- ============================================
+-- 11️⃣ Indexes
+-- ============================================
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_conversation_participants_user_id ON public.conversation_participants(user_id);
