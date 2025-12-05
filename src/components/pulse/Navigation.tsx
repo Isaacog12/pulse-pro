@@ -1,25 +1,26 @@
-import { Home, Globe, Plus, Bell, User, Film, Zap } from "lucide-react";
+import { Home, Globe, Plus, Bell, User, Film, Zap, MessageSquare } from "lucide-react";
 import { PulseLogo } from "./PulseLogo";
 import { cn } from "@/lib/utils";
 
-type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings";
+type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings" | "messages";
 
 interface NavigationProps {
   currentView: ViewType;
   setView: (view: ViewType) => void;
   isMobile: boolean;
   isPro?: boolean;
+  unreadMessages?: number;
 }
 
 const navItems = [
   { id: "home" as const, icon: Home, label: "Feed" },
   { id: "explore" as const, icon: Globe, label: "Explore" },
   { id: "create" as const, icon: Plus, label: "Create", highlight: true },
-  { id: "notifications" as const, icon: Bell, label: "Alerts" },
+  { id: "messages" as const, icon: MessageSquare, label: "Messages" },
   { id: "profile" as const, icon: User, label: "Profile" },
 ];
 
-export const Navigation = ({ currentView, setView, isMobile, isPro }: NavigationProps) => {
+export const Navigation = ({ currentView, setView, isMobile, isPro, unreadMessages = 0 }: NavigationProps) => {
   if (isMobile) {
     return (
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm glass-strong rounded-full shadow-2xl z-50 px-6 py-3 flex justify-between items-center">
@@ -37,7 +38,14 @@ export const Navigation = ({ currentView, setView, isMobile, isPro }: Navigation
                 <item.icon size={24} className="text-primary-foreground" />
               </div>
             ) : (
-              <item.icon size={24} />
+              <div className="relative">
+                <item.icon size={24} />
+                {item.id === "messages" && unreadMessages > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
+              </div>
             )}
             {currentView === item.id && !item.highlight && (
               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
@@ -58,18 +66,25 @@ export const Navigation = ({ currentView, setView, isMobile, isPro }: Navigation
 
       {/* Nav Items */}
       <div className="space-y-2 flex-1">
-        {[...navItems, { id: "reels" as const, icon: Film, label: "Reels" }].map((item) => (
+        {[...navItems.filter(i => i.id !== "create"), { id: "notifications" as const, icon: Bell, label: "Alerts" }, { id: "reels" as const, icon: Film, label: "Reels" }].map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
             className={cn(
-              "flex items-center space-x-4 px-4 py-3 rounded-xl transition-all w-full",
+              "flex items-center space-x-4 px-4 py-3 rounded-xl transition-all w-full relative",
               currentView === item.id
                 ? "bg-gradient-to-r from-primary/20 to-transparent text-primary font-bold border-l-4 border-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
             )}
           >
-            <item.icon size={22} />
+            <div className="relative">
+              <item.icon size={22} />
+              {item.id === "messages" && unreadMessages > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
+              )}
+            </div>
             <span>{item.label}</span>
           </button>
         ))}
