@@ -7,6 +7,7 @@ import { CommentsSheet } from "@/components/pulse/CommentsSheet";
 import { UserProfile } from "@/components/pulse/UserProfile";
 import { CreatePostModal } from "@/components/pulse/CreatePostModal";
 import { NotificationsView } from "@/components/pulse/NotificationsView";
+import { SettingsView } from "@/components/pulse/SettingsView";
 import { PulseLogo } from "@/components/pulse/PulseLogo";
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
@@ -276,10 +277,7 @@ const Index = () => {
 
           {currentView === "settings" && (
             <div className="p-4">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Settings</h2>
-              <div className="glass rounded-2xl p-6">
-                <p className="text-muted-foreground">Settings coming soon...</p>
-              </div>
+              <SettingsView onBack={() => setCurrentView("profile")} />
             </div>
           )}
 

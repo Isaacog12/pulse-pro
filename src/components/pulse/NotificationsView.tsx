@@ -31,7 +31,8 @@ export const NotificationsView = () => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      setupRealtimeSubscription();
+      const cleanup = setupRealtimeSubscription();
+      return cleanup;
     }
   }, [user]);
 
@@ -218,17 +219,15 @@ export const NotificationsView = () => {
                 />
               )}
 
-              <Button
-                variant="ghost"
-                size="iconSm"
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteNotification(notification.id);
                 }}
-                className="opacity-0 group-hover:opacity-100"
+                className="p-2 rounded-full hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
               >
                 <Trash2 size={16} />
-              </Button>
+              </button>
             </div>
           ))}
         </div>
