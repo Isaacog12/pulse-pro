@@ -30,13 +30,22 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchMessages();
     markMessagesAsRead();
+    checkOtherUserStatus();
     const cleanup = setupRealtimeSubscription();
-    return cleanup;
+    
+    // Poll for online status every 30 seconds
+    const statusInterval = setInterval(checkOtherUserStatus, 30000);
+    
+    return () => {
+      cleanup();
+      clearInterval(statusInterval);
+    };
   }, [conversationId]);
 
   useEffect(() => {
@@ -68,6 +77,21 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
       .eq("conversation_id", conversationId)
       .neq("sender_id", user.id)
       .eq("read", false);
+  };
+
+  const checkOtherUserStatus = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("last_seen")
+      .eq("id", otherUser.id)
+      .single();
+
+    if (data?.last_seen) {
+      const lastSeenDate = new Date(data.last_seen);
+      const now = new Date();
+      const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 1000 / 60;
+      setOtherUserOnline(diffMinutes < 5);
+    }
   };
 
   const setupRealtimeSubscription = () => {
@@ -167,17 +191,30 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
         >
           <ArrowLeft size={20} className="text-foreground" />
         </button>
-        <img
-          src={
-            otherUser.avatar_url ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherUser.id}`
-          }
-          alt={otherUser.username}
-          className="w-10 h-10 rounded-full object-cover bg-secondary"
-        />
+        <div className="relative">
+          <img
+            src={
+              otherUser.avatar_url ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherUser.id}`
+            }
+            alt={otherUser.username}
+            className="w-10 h-10 rounded-full object-cover bg-secondary"
+          />
+          <div 
+            className={cn(
+              "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
+              otherUserOnline ? "bg-green-500" : "bg-muted-foreground/50"
+            )}
+          />
+        </div>
         <div>
           <p className="font-semibold text-foreground">{otherUser.username}</p>
-          <p className="text-xs text-muted-foreground">Online</p>
+          <p className={cn(
+            "text-xs",
+            otherUserOnline ? "text-green-500" : "text-muted-foreground"
+          )}>
+            {otherUserOnline ? "Online" : "Offline"}
+          </p>
         </div>
       </div>
 

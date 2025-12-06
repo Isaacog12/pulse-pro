@@ -13,9 +13,11 @@ import { ChatView } from "@/components/pulse/ChatView";
 import { UserSearchModal } from "@/components/pulse/UserSearchModal";
 import { ExploreView } from "@/components/pulse/ExploreView";
 import { ProfileViewModal } from "@/components/pulse/ProfileViewModal";
+import { PostDetailModal } from "@/components/pulse/PostDetailModal";
 import { PulseLogo } from "@/components/pulse/PulseLogo";
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
+import { useUpdateLastSeen } from "@/hooks/useUpdateLastSeen";
 import { supabase } from "@/integrations/supabase/client";
 
 type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings" | "messages";
@@ -55,6 +57,7 @@ interface Story {
 
 const Index = () => {
   const { user, profile, loading: authLoading } = useAuth();
+  useUpdateLastSeen(); // Track user online status
   const [currentView, setCurrentView] = useState<ViewType>("home");
   const [isMobile, setIsMobile] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -68,7 +71,7 @@ const Index = () => {
     otherUser: { id: string; username: string; avatar_url: string | null };
   } | null>(null);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
-
+  const [viewingPostId, setViewingPostId] = useState<string | null>(null);
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -272,7 +275,8 @@ const Index = () => {
             <div className="p-4">
               <ExploreView 
                 posts={posts} 
-                onViewProfile={(userId) => setViewingProfileId(userId)} 
+                onViewProfile={(userId) => setViewingProfileId(userId)}
+                onViewPost={(postId) => setViewingPostId(postId)}
               />
             </div>
           )}
@@ -376,6 +380,16 @@ const Index = () => {
         <ProfileViewModal
           userId={viewingProfileId}
           onClose={() => setViewingProfileId(null)}
+          onViewPost={(postId) => setViewingPostId(postId)}
+        />
+      )}
+
+      {/* Post Detail Modal */}
+      {viewingPostId && (
+        <PostDetailModal
+          postId={viewingPostId}
+          onClose={() => setViewingPostId(null)}
+          onViewProfile={(userId) => setViewingProfileId(userId)}
         />
       )}
     </div>

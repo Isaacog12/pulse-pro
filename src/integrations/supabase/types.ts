@@ -351,6 +351,7 @@ export type Database = {
           id: string
           is_pro: boolean | null
           is_verified: boolean | null
+          last_seen: string | null
           status: string | null
           updated_at: string | null
           username: string
@@ -362,6 +363,7 @@ export type Database = {
           id: string
           is_pro?: boolean | null
           is_verified?: boolean | null
+          last_seen?: string | null
           status?: string | null
           updated_at?: string | null
           username: string
@@ -373,6 +375,7 @@ export type Database = {
           id?: string
           is_pro?: boolean | null
           is_verified?: boolean | null
+          last_seen?: string | null
           status?: string | null
           updated_at?: string | null
           username?: string
