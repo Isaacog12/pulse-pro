@@ -12,6 +12,7 @@ import { MessagesView } from "@/components/pulse/MessagesView";
 import { ChatView } from "@/components/pulse/ChatView";
 import { UserSearchModal } from "@/components/pulse/UserSearchModal";
 import { ExploreView } from "@/components/pulse/ExploreView";
+import { ProfileViewModal } from "@/components/pulse/ProfileViewModal";
 import { PulseLogo } from "@/components/pulse/PulseLogo";
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +67,7 @@ const Index = () => {
     conversationId: string;
     otherUser: { id: string; username: string; avatar_url: string | null };
   } | null>(null);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -252,6 +254,7 @@ const Index = () => {
                       currentUserId={user.id}
                       onViewComments={() => setSelectedPostId(post.id)}
                       onPostDeleted={fetchPosts}
+                      onViewProfile={(userId) => setViewingProfileId(userId)}
                     />
                   ))
                 )}
@@ -267,7 +270,10 @@ const Index = () => {
 
           {currentView === "explore" && (
             <div className="p-4">
-              <ExploreView posts={posts} />
+              <ExploreView 
+                posts={posts} 
+                onViewProfile={(userId) => setViewingProfileId(userId)} 
+              />
             </div>
           )}
 
@@ -362,6 +368,14 @@ const Index = () => {
             });
             setCurrentView("messages");
           }}
+        />
+      )}
+
+      {/* Profile View Modal */}
+      {viewingProfileId && (
+        <ProfileViewModal
+          userId={viewingProfileId}
+          onClose={() => setViewingProfileId(null)}
         />
       )}
     </div>

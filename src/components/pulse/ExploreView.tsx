@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Loader2 } from "lucide-react";
+import { Search, UserPlus, Loader2, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,18 +22,23 @@ interface UserProfile {
 
 interface ExploreViewProps {
   posts: Post[];
+  onViewProfile: (userId: string) => void;
 }
 
-export const ExploreView = ({ posts }: ExploreViewProps) => {
+export const ExploreView = ({ posts, onViewProfile }: ExploreViewProps) => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
 
   useEffect(() => {
-    fetchSuggestedUsers();
+    if (user) {
+      checkIfNewUser();
+      fetchSuggestedUsers();
+    }
   }, [user]);
 
   useEffect(() => {
@@ -45,6 +50,23 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
       setShowResults(false);
     }
   }, [searchQuery]);
+
+  const checkIfNewUser = async () => {
+    if (!user) return;
+
+    // Check if user has any followers or is following anyone
+    const { count: followersCount } = await supabase
+      .from("followers")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", user.id);
+
+    const { count: followingCount } = await supabase
+      .from("followers")
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", user.id);
+
+    setIsNewUser((followersCount || 0) === 0 && (followingCount || 0) === 0);
+  };
 
   const fetchSuggestedUsers = async () => {
     if (!user) return;
@@ -62,7 +84,7 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
       .select("id, username, avatar_url, bio, is_verified, is_pro")
       .neq("id", user.id)
       .not("id", "in", followingIds.length > 0 ? `(${followingIds.join(",")})` : "()")
-      .limit(5);
+      .limit(isNewUser ? 10 : 5);
 
     if (data) {
       setSuggestedUsers(data);
@@ -82,6 +104,11 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
       setSearchResults(data);
     }
     setLoading(false);
+  };
+
+  const handleFollowChange = () => {
+    fetchSuggestedUsers();
+    checkIfNewUser();
   };
 
   return (
@@ -115,7 +142,8 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
                 <UserRow
                   key={profile.id}
                   profile={profile}
-                  onFollowChange={fetchSuggestedUsers}
+                  onFollowChange={handleFollowChange}
+                  onViewProfile={onViewProfile}
                 />
               ))
             )}
@@ -131,8 +159,39 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
         />
       )}
 
-      {/* Suggested Users */}
-      {suggestedUsers.length > 0 && !showResults && (
+      {/* New User Welcome Section */}
+      {isNewUser && suggestedUsers.length > 0 && !showResults && (
+        <div className="mb-8">
+          <div className="glass rounded-2xl p-6 mb-4 border border-primary/20">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-full bg-primary/20">
+                <Sparkles size={24} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Welcome to Pulse!</h3>
+                <p className="text-sm text-muted-foreground">Follow some people to get started</p>
+              </div>
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <UserPlus size={20} className="text-primary" />
+            People you might know
+          </h3>
+          <div className="glass rounded-2xl overflow-hidden">
+            {suggestedUsers.map((profile) => (
+              <UserRow
+                key={profile.id}
+                profile={profile}
+                onFollowChange={handleFollowChange}
+                onViewProfile={onViewProfile}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Regular Suggested Users (for non-new users) */}
+      {!isNewUser && suggestedUsers.length > 0 && !showResults && (
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <UserPlus size={20} className="text-primary" />
@@ -143,7 +202,8 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
               <UserRow
                 key={profile.id}
                 profile={profile}
-                onFollowChange={fetchSuggestedUsers}
+                onFollowChange={handleFollowChange}
+                onViewProfile={onViewProfile}
               />
             ))}
           </div>
@@ -166,28 +226,32 @@ export const ExploreView = ({ posts }: ExploreViewProps) => {
 interface UserRowProps {
   profile: UserProfile;
   onFollowChange: () => void;
+  onViewProfile: (userId: string) => void;
 }
 
-const UserRow = ({ profile, onFollowChange }: UserRowProps) => {
+const UserRow = ({ profile, onFollowChange, onViewProfile }: UserRowProps) => {
   return (
     <div className="flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors border-b border-border last:border-0">
-      <div className="flex items-center gap-3">
+      <div 
+        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+        onClick={() => onViewProfile(profile.id)}
+      >
         <img
           src={
             profile.avatar_url ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`
           }
           alt={profile.username}
-          className="w-12 h-12 rounded-full object-cover bg-secondary"
+          className="w-12 h-12 rounded-full object-cover bg-secondary flex-shrink-0"
         />
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-1">
-            <p className="font-medium text-foreground">{profile.username}</p>
+            <p className="font-medium text-foreground hover:underline truncate">{profile.username}</p>
             {profile.is_verified && (
-              <span className="text-yellow-400">✓</span>
+              <span className="text-yellow-400 flex-shrink-0">✓</span>
             )}
             {profile.is_pro && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 rounded">PRO</span>
+              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 rounded flex-shrink-0">PRO</span>
             )}
           </div>
           {profile.bio && (

@@ -31,6 +31,7 @@ interface PostCardProps {
   currentUserId: string;
   onViewComments: () => void;
   onPostDeleted?: () => void;
+  onViewProfile?: (userId: string) => void;
 }
 
 export const PostCard = ({
@@ -38,6 +39,7 @@ export const PostCard = ({
   currentUserId,
   onViewComments,
   onPostDeleted,
+  onViewProfile,
 }: PostCardProps) => {
   const [liked, setLiked] = useState(post.is_liked);
   const [likeCount, setLikeCount] = useState(post.likes_count);
@@ -125,7 +127,10 @@ export const PostCard = ({
       )}
 
       <div className="flex items-center justify-between p-4 relative">
-        <div className="flex items-center space-x-3">
+        <div 
+          className="flex items-center space-x-3 cursor-pointer"
+          onClick={() => onViewProfile?.(post.user_id)}
+        >
           <div
             className={cn(
               "w-10 h-10 rounded-full p-0.5",
@@ -142,7 +147,7 @@ export const PostCard = ({
           </div>
           <div>
             <div className="flex items-center">
-              <span className="font-bold text-foreground mr-1">{post.profile?.username || "User"}</span>
+              <span className="font-bold text-foreground mr-1 hover:underline">{post.profile?.username || "User"}</span>
               {post.profile?.is_verified && (
                 <CheckCircle size={14} className="text-yellow-400 fill-current" />
               )}
@@ -217,7 +222,12 @@ export const PostCard = ({
 
         <div className="font-bold text-foreground mb-2">{likeCount} likes</div>
         <div className="text-foreground mb-2">
-          <span className="font-bold mr-2">{post.profile?.username}</span>
+          <span 
+            className="font-bold mr-2 cursor-pointer hover:underline"
+            onClick={() => onViewProfile?.(post.user_id)}
+          >
+            {post.profile?.username}
+          </span>
           {post.caption}
         </div>
         <button
