@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Mail, Lock, User, ArrowRight, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PulseLogo } from "./PulseLogo";
 import { WaveLoader } from "./WaveLoader";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,17 @@ export const AuthPage = () => {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load remembered email on mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem("pulse_remembered_email");
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +66,13 @@ export const AuthPage = () => {
             toast.error("Invalid email or password");
           } else {
             toast.error(error.message);
+          }
+        } else {
+          // Save or remove remembered email
+          if (rememberMe) {
+            localStorage.setItem("pulse_remembered_email", email);
+          } else {
+            localStorage.removeItem("pulse_remembered_email");
           }
         }
       }
@@ -181,18 +200,38 @@ export const AuthPage = () => {
                     <Lock size={20} className="text-muted-foreground" />
                   </div>
                   <Input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    className="pl-12"
+                    className="pl-12 pr-12"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={6}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
 
                 {isLogin && (
-                  <div className="flex justify-end mt-2">
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="remember" 
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                      />
+                      <label 
+                        htmlFor="remember" 
+                        className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      >
+                        Remember me
+                      </label>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {

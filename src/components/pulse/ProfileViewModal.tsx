@@ -3,6 +3,7 @@ import { X, CheckCircle, Grid, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { FollowButton } from "./FollowButton";
+import { cn } from "@/lib/utils";
 
 interface ProfileData {
   id: string;
@@ -12,19 +13,29 @@ interface ProfileData {
   is_verified: boolean;
   is_pro: boolean;
   status: string | null;
+  last_seen: string | null;
 }
 
 interface ProfileViewModalProps {
   userId: string;
   onClose: () => void;
+  onViewPost?: (postId: string) => void;
 }
 
-export const ProfileViewModal = ({ userId, onClose }: ProfileViewModalProps) => {
+export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewModalProps) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<{ id: string; image_url: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 });
+
+  const isOnline = (lastSeen: string | null) => {
+    if (!lastSeen) return false;
+    const lastSeenDate = new Date(lastSeen);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 1000 / 60;
+    return diffMinutes < 5; // Online if seen in last 5 minutes
+  };
 
   useEffect(() => {
     fetchProfileData();
@@ -114,8 +125,16 @@ export const ProfileViewModal = ({ userId, onClose }: ProfileViewModalProps) => 
                     className="w-full h-full rounded-full object-cover bg-secondary"
                   />
                 </div>
+                {/* Online indicator */}
+                <div 
+                  className={cn(
+                    "absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-background",
+                    isOnline(profile.last_seen) ? "bg-green-500" : "bg-muted-foreground/50"
+                  )}
+                  title={isOnline(profile.last_seen) ? "Online" : "Offline"}
+                />
                 {profile.is_pro && (
-                  <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">
+                  <div className="absolute -bottom-1 -left-1 bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">
                     PRO
                   </div>
                 )}
@@ -171,11 +190,23 @@ export const ProfileViewModal = ({ userId, onClose }: ProfileViewModalProps) => 
                 </div>
                 <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
                   {posts.map((post) => (
-                    <div key={post.id} className="aspect-square">
+                    <div 
+                      key={post.id} 
+                      className={cn(
+                        "aspect-square group",
+                        onViewPost && "cursor-pointer"
+                      )}
+                      onClick={() => {
+                        if (onViewPost) {
+                          onClose();
+                          onViewPost(post.id);
+                        }
+                      }}
+                    >
                       <img
                         src={post.image_url}
                         alt=""
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
                       />
                     </div>
                   ))}

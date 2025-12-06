@@ -18,14 +18,16 @@ interface UserProfile {
   bio: string | null;
   is_verified: boolean;
   is_pro: boolean;
+  last_seen?: string | null;
 }
 
 interface ExploreViewProps {
   posts: Post[];
   onViewProfile: (userId: string) => void;
+  onViewPost: (postId: string) => void;
 }
 
-export const ExploreView = ({ posts, onViewProfile }: ExploreViewProps) => {
+export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewProps) => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
@@ -81,7 +83,7 @@ export const ExploreView = ({ posts, onViewProfile }: ExploreViewProps) => {
 
     const { data } = await supabase
       .from("profiles")
-      .select("id, username, avatar_url, bio, is_verified, is_pro")
+      .select("id, username, avatar_url, bio, is_verified, is_pro, last_seen")
       .neq("id", user.id)
       .not("id", "in", followingIds.length > 0 ? `(${followingIds.join(",")})` : "()")
       .limit(isNewUser ? 10 : 5);
@@ -95,7 +97,7 @@ export const ExploreView = ({ posts, onViewProfile }: ExploreViewProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, avatar_url, bio, is_verified, is_pro")
+      .select("id, username, avatar_url, bio, is_verified, is_pro, last_seen")
       .neq("id", user?.id)
       .ilike("username", `%${searchQuery}%`)
       .limit(10);
@@ -214,8 +216,13 @@ export const ExploreView = ({ posts, onViewProfile }: ExploreViewProps) => {
       <h3 className="text-lg font-semibold text-foreground mb-4">Discover Posts</h3>
       <div className="grid grid-cols-3 gap-1">
         {posts.map((post) => (
-          <div key={post.id} className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg">
+          <div 
+            key={post.id} 
+            className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg"
+            onClick={() => onViewPost(post.id)}
+          >
             <img src={post.image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
           </div>
         ))}
       </div>
