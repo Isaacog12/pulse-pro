@@ -77,24 +77,37 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
         }
       }
 
-      // Create new conversation
+      // Create new conversation - don't use .select() to avoid RLS issue
       const { data: newConv, error: convError } = await supabase
         .from("conversations")
         .insert({})
-        .select()
+        .select("id")
         .single();
 
-      if (convError) throw convError;
+      if (convError) {
+        console.error("Conversation creation error:", convError);
+        throw convError;
+      }
 
-      // Add participants
-      const { error: partError } = await supabase
+      // Add current user as participant first
+      const { error: selfPartError } = await supabase
         .from("conversation_participants")
-        .insert([
-          { conversation_id: newConv.id, user_id: user.id },
-          { conversation_id: newConv.id, user_id: targetUser.id },
-        ]);
+        .insert({ conversation_id: newConv.id, user_id: user.id });
 
-      if (partError) throw partError;
+      if (selfPartError) {
+        console.error("Self participant error:", selfPartError);
+        throw selfPartError;
+      }
+
+      // Add target user as participant
+      const { error: targetPartError } = await supabase
+        .from("conversation_participants")
+        .insert({ conversation_id: newConv.id, user_id: targetUser.id });
+
+      if (targetPartError) {
+        console.error("Target participant error:", targetPartError);
+        throw targetPartError;
+      }
 
       onStartChat(newConv.id, targetUser);
     } catch (error) {
