@@ -206,6 +206,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
             </h3>
           </div>
           <div className="divide-y divide-border">
+            {/* Dark Mode Toggle */}
             <SettingItem
               icon={settings.darkMode ? Moon : Sun}
               title="Dark Mode"
@@ -213,6 +214,43 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
               value={settings.darkMode}
               onChange={(v) => updateSetting("darkMode", v)}
             />
+
+            {/* Pro Themes Picker */}
+            <div className="p-4">
+              <p className="font-medium text-foreground mb-2 flex items-center gap-2">
+                Custom Themes
+                {!isPro && (
+                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Zap size={10} /> PRO
+                  </span>
+                )}
+              </p>
+              {isPro ? (
+                <div className="flex gap-3 flex-wrap">
+                  {[
+                    "#EF4444", // Red
+                    "#F97316", // Orange
+                    "#EAB308", // Yellow
+                    "#10B981", // Green
+                    "#3B82F6", // Blue
+                    "#8B5CF6", // Purple
+                    "#EC4899", // Pink
+                    "#FBBF24", // Amber
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => toast.success(`Theme changed to ${color}`)}
+                      style={{ backgroundColor: color }}
+                      className={cn(
+                        "w-8 h-8 rounded-full border-2 border-transparent hover:border-foreground transition-colors"
+                      )}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Upgrade to Pro to select custom themes</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
