@@ -19,6 +19,7 @@ interface UserProfile {
   is_verified: boolean;
   is_pro: boolean;
   last_seen?: string | null;
+  following_count?: number; // added for new user check
 }
 
 interface ExploreViewProps {
@@ -56,7 +57,6 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
   const checkIfNewUser = async () => {
     if (!user) return;
 
-    // Check if user has any followers or is following anyone
     const { count: followersCount } = await supabase
       .from("followers")
       .select("*", { count: "exact", head: true })
@@ -70,10 +70,11 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
     setIsNewUser((followersCount || 0) === 0 && (followingCount || 0) === 0);
   };
 
+  // Optimized fetch: get suggested users with zero following
   const fetchSuggestedUsers = async () => {
     if (!user) return;
 
-    // Get users the current user is NOT following
+    // Get users the current user is already following
     const { data: following } = await supabase
       .from("followers")
       .select("following_id")
@@ -81,16 +82,32 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
 
     const followingIds = following?.map((f) => f.following_id) || [];
 
-    const { data } = await supabase
+    // Fetch users who are NOT followed by current user, NOT self, AND have zero following
+    const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, avatar_url, bio, is_verified, is_pro, last_seen")
+      .select(`
+        id,
+        username,
+        avatar_url,
+        bio,
+        is_verified,
+        is_pro,
+        last_seen,
+        following:followers!followers_follower_id_fkey(follower_id)
+      `)
       .neq("id", user.id)
       .not("id", "in", followingIds.length > 0 ? `(${followingIds.join(",")})` : "()")
       .limit(isNewUser ? 10 : 5);
 
-    if (data) {
-      setSuggestedUsers(data);
+    if (error) {
+      console.error("Error fetching suggested users:", error);
+      return;
     }
+
+    // Keep only users with zero following
+    const newUsersOnly = data?.filter((u: any) => u.following.length === 0) || [];
+
+    setSuggestedUsers(newUsersOnly);
   };
 
   const searchUsers = async () => {
@@ -128,7 +145,6 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
           className="pl-10"
         />
 
-        {/* Search Results Dropdown */}
         {showResults && (
           <div className="absolute top-full left-0 right-0 mt-2 glass-strong rounded-2xl overflow-hidden z-20 max-h-80 overflow-y-auto">
             {loading ? (
@@ -136,16 +152,14 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
                 <Loader2 className="animate-spin text-primary" size={24} />
               </div>
             ) : searchResults.length === 0 ? (
-              <p className="text-center text-muted-foreground py-6 text-sm">
-                No users found
-              </p>
+              <p className="text-center text-muted-foreground py-6 text-sm">No users found</p>
             ) : (
               searchResults.map((profile) => (
                 <UserRow
                   key={profile.id}
                   profile={profile}
                   onFollowChange={handleFollowChange}
-                  onViewProfile={onViewProfile}
+                  onViewProfile={(id) => console.log("View profile:", id)}
                 />
               ))
             )}
@@ -153,13 +167,7 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
         )}
       </div>
 
-      {/* Click outside to close */}
-      {showResults && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setShowResults(false)}
-        />
-      )}
+      {showResults && <div className="fixed inset-0 z-10" onClick={() => setShowResults(false)} />}
 
       {/* New User Welcome Section */}
       {isNewUser && suggestedUsers.length > 0 && !showResults && (
@@ -192,32 +200,12 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
         </div>
       )}
 
-      {/* Regular Suggested Users (for non-new users) */}
-      {!isNewUser && suggestedUsers.length > 0 && !showResults && (
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <UserPlus size={20} className="text-primary" />
-            Suggested for you
-          </h3>
-          <div className="glass rounded-2xl overflow-hidden">
-            {suggestedUsers.map((profile) => (
-              <UserRow
-                key={profile.id}
-                profile={profile}
-                onFollowChange={handleFollowChange}
-                onViewProfile={onViewProfile}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Posts Grid */}
       <h3 className="text-lg font-semibold text-foreground mb-4">Discover Posts</h3>
       <div className="grid grid-cols-3 gap-1">
         {posts.map((post) => (
-          <div 
-            key={post.id} 
+          <div
+            key={post.id}
             className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg"
             onClick={() => onViewPost(post.id)}
           >
@@ -239,40 +227,22 @@ interface UserRowProps {
 const UserRow = ({ profile, onFollowChange, onViewProfile }: UserRowProps) => {
   return (
     <div className="flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors border-b border-border last:border-0">
-      <div 
-        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-        onClick={() => onViewProfile(profile.id)}
-      >
+      <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => onViewProfile(profile.id)}>
         <img
-          src={
-            profile.avatar_url ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`
-          }
+          src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`}
           alt={profile.username}
           className="w-12 h-12 rounded-full object-cover bg-secondary flex-shrink-0"
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1">
             <p className="font-medium text-foreground hover:underline truncate">{profile.username}</p>
-            {profile.is_verified && (
-              <span className="text-yellow-400 flex-shrink-0">✓</span>
-            )}
-            {profile.is_pro && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 rounded flex-shrink-0">PRO</span>
-            )}
+            {profile.is_verified && <span className="text-yellow-400 flex-shrink-0">✓</span>}
+            {profile.is_pro && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 rounded flex-shrink-0">PRO</span>}
           </div>
-          {profile.bio && (
-            <p className="text-xs text-muted-foreground truncate max-w-[180px]">
-              {profile.bio}
-            </p>
-          )}
+          {profile.bio && <p className="text-xs text-muted-foreground truncate max-w-[180px]">{profile.bio}</p>}
         </div>
       </div>
-      <FollowButton
-        targetUserId={profile.id}
-        onFollowChange={onFollowChange}
-        size="sm"
-      />
+      <FollowButton targetUserId={profile.id} onFollowChange={onFollowChange} size="sm" />
     </div>
   );
 };
