@@ -109,9 +109,27 @@ const Index = () => {
   const fetchPosts = async () => {
     if (!user) return;
 
+    // First get the list of users the current user follows
+    const { data: followingData } = await supabase
+      .from("followers")
+      .select("following_id")
+      .eq("follower_id", user.id);
+
+    const followingIds = followingData?.map((f) => f.following_id) || [];
+    
+    // Include the current user's posts + posts from people they follow
+    const userIdsToFetch = [user.id, ...followingIds];
+
+    if (userIdsToFetch.length === 0) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
     const { data: postsData, error } = await supabase
       .from("posts")
       .select("*, profile:profiles(username, avatar_url, is_verified, is_pro)")
+      .in("user_id", userIdsToFetch)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -163,13 +181,32 @@ const Index = () => {
   };
 
   const fetchStories = async () => {
+    if (!user) return;
+
+    // First get the list of users the current user follows
+    const { data: followingData } = await supabase
+      .from("followers")
+      .select("following_id")
+      .eq("follower_id", user.id);
+
+    const followingIds = followingData?.map((f) => f.following_id) || [];
+    
+    // Include the current user's stories + stories from people they follow
+    const userIdsToFetch = [user.id, ...followingIds];
+
     // Get stories from last 24 hours
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
+    if (userIdsToFetch.length === 0) {
+      setStories([]);
+      return;
+    }
+
     const { data } = await supabase
       .from("stories")
       .select("*, profile:profiles(username, avatar_url)")
+      .in("user_id", userIdsToFetch)
       .gte("created_at", twentyFourHoursAgo.toISOString())
       .order("created_at", { ascending: false });
 
@@ -245,9 +282,9 @@ const Index = () => {
                     <PulseLoader />
                   </div>
                 ) : posts.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    <p className="text-lg font-medium">No posts yet</p>
-                    <p className="text-sm">Be the first to share something!</p>
+                  <div className="text-center py-16 text-muted-foreground animate-fade-in">
+                    <p className="text-lg font-medium">Your feed is empty</p>
+                    <p className="text-sm mt-2">Follow people to see their posts here, or explore to discover new content!</p>
                   </div>
                 ) : (
                   posts.map((post) => (

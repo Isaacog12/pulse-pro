@@ -103,23 +103,35 @@ export const AuthPage = () => {
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
 
-      <div className="z-10 w-full max-w-md flex flex-col items-center">
+      <div className="z-10 w-full max-w-md flex flex-col items-center animate-fade-in">
 
         {/* Logo */}
-        <div className="mb-8 transform hover:scale-110 transition-transform duration-500 cursor-pointer">
+        <div className="mb-8 transform hover:scale-110 transition-transform duration-500 cursor-pointer animate-scale-in" style={{ animationDelay: "0.1s" }}>
           <PulseLogo size="lg" animated />
         </div>
 
         {/* Card */}
-        <div className="w-full glass-strong p-8 rounded-3xl shadow-[0_0_50px_-12px_hsl(var(--primary)/0.3)] relative overflow-hidden">
+        <div 
+          className="w-full glass-strong p-8 rounded-3xl shadow-[0_0_50px_-12px_hsl(var(--primary)/0.3)] relative overflow-hidden animate-scale-in"
+          style={{ animationDelay: "0.2s" }}
+        >
 
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
+            <h1 
+              className={cn(
+                "text-4xl font-bold text-foreground mb-2 tracking-tight transition-all duration-300",
+                "animate-fade-in"
+              )}
+              style={{ animationDelay: "0.3s" }}
+            >
               {isSignup ? "Join the Pulse" : isForgot ? "Reset Password" : "Welcome Back"}
             </h1>
 
-            <p className="text-muted-foreground text-sm font-medium">
+            <p 
+              className="text-muted-foreground text-sm font-medium animate-fade-in"
+              style={{ animationDelay: "0.4s" }}
+            >
               {isSignup
                 ? "Experience the next generation of social."
                 : isForgot
@@ -130,14 +142,17 @@ export const AuthPage = () => {
 
           {/* Tabs */}
           {!isForgot && (
-            <div className="flex bg-background/50 p-1.5 rounded-2xl mb-8 border border-border/30">
+            <div 
+              className="flex bg-background/50 p-1.5 rounded-2xl mb-8 border border-border/30 animate-fade-in"
+              style={{ animationDelay: "0.5s" }}
+            >
               <button
                 onClick={() => setView("login")}
                 className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
+                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300",
                   isLogin
-                    ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg scale-[1.02]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
               >
                 Log In
@@ -146,10 +161,10 @@ export const AuthPage = () => {
               <button
                 onClick={() => setView("signup")}
                 className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
+                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300",
                   isSignup
-                    ? "bg-gradient-to-r from-accent to-accent/80 text-accent-foreground shadow-lg"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-accent to-accent/80 text-accent-foreground shadow-lg scale-[1.02]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
               >
                 Sign Up
@@ -162,14 +177,14 @@ export const AuthPage = () => {
 
             {/* Username (signup only) */}
             {isSignup && (
-              <div className="relative">
+              <div className="relative animate-fade-in" style={{ animationDelay: "0.6s" }}>
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <User size={20} className="text-muted-foreground" />
                 </div>
                 <Input
                   type="text"
                   placeholder="Username"
-                  className="pl-12"
+                  className="pl-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required={isSignup}
@@ -178,14 +193,17 @@ export const AuthPage = () => {
             )}
 
             {/* Email */}
-            <div className="relative">
+            <div 
+              className="relative animate-fade-in" 
+              style={{ animationDelay: isSignup ? "0.7s" : "0.6s" }}
+            >
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Mail size={20} className="text-muted-foreground" />
               </div>
               <Input
                 type="email"
                 placeholder="Email Address"
-                className="pl-12"
+                className="pl-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -194,15 +212,18 @@ export const AuthPage = () => {
 
             {/* Password (not for forgot) */}
             {!isForgot && (
-              <div>
-                <div className="relative">
+              <div 
+                className="animate-fade-in"
+                style={{ animationDelay: isSignup ? "0.8s" : "0.7s" }}
+              >
+                <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Lock size={20} className="text-muted-foreground" />
                   </div>
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    className="pl-12 pr-12"
+                    className="pl-12 pr-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={6}
@@ -211,19 +232,23 @@ export const AuthPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-all duration-200 hover:scale-110"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
 
                 {isLogin && (
-                  <div className="flex items-center justify-between mt-3">
+                  <div 
+                    className="flex items-center justify-between mt-3 animate-fade-in"
+                    style={{ animationDelay: "0.8s" }}
+                  >
                     <div className="flex items-center space-x-2">
                       <Checkbox 
                         id="remember" 
                         checked={rememberMe}
                         onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                        className="transition-transform duration-200 hover:scale-110"
                       />
                       <label 
                         htmlFor="remember" 
@@ -238,7 +263,7 @@ export const AuthPage = () => {
                         setView("forgot");
                         setResetSent(false);
                       }}
-                      className="text-xs text-muted-foreground hover:text-primary font-medium"
+                      className="text-xs text-muted-foreground hover:text-primary font-medium transition-all duration-200 hover:translate-x-1"
                     >
                       Forgot Password?
                     </button>
@@ -249,7 +274,7 @@ export const AuthPage = () => {
 
             {/* Success message */}
             {resetSent ? (
-              <div className="bg-green-500/20 text-green-400 p-4 rounded-xl text-center text-sm font-bold border border-green-500/30">
+              <div className="bg-green-500/20 text-green-400 p-4 rounded-xl text-center text-sm font-bold border border-green-500/30 animate-scale-in">
                 Check your email!
               </div>
             ) : (
@@ -258,12 +283,15 @@ export const AuthPage = () => {
                 disabled={loading}
                 variant="gradient"
                 size="xl"
-                className="w-full mt-6"
+                className={cn(
+                  "w-full mt-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98] animate-fade-in",
+                )}
+                style={{ animationDelay: isSignup ? "0.9s" : "0.9s" }}
               >
                 {loading ? <WaveLoader /> : (
-                  <span className="flex items-center">
+                  <span className="flex items-center group">
                     {isForgot ? "Send Link" : isSignup ? "Create Account" : "Continue"}
-                    <ArrowRight size={20} className="ml-2" />
+                    <ArrowRight size={20} className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
                   </span>
                 )}
               </Button>
@@ -274,13 +302,21 @@ export const AuthPage = () => {
               <button
                 type="button"
                 onClick={() => setView("login")}
-                className="w-full py-3 text-muted-foreground font-bold hover:text-foreground flex items-center justify-center"
+                className="w-full py-3 text-muted-foreground font-bold hover:text-foreground flex items-center justify-center transition-all duration-200 hover:-translate-x-1 group animate-fade-in"
               >
-                <ArrowLeft size={16} className="mr-2" /> Back to Login
+                <ArrowLeft size={16} className="mr-2 transition-transform duration-300 group-hover:-translate-x-1" /> Back to Login
               </button>
             )}
           </form>
         </div>
+
+        {/* Footer text */}
+        <p 
+          className="text-xs text-muted-foreground mt-6 text-center animate-fade-in"
+          style={{ animationDelay: "1s" }}
+        >
+          By continuing, you agree to our Terms of Service and Privacy Policy
+        </p>
       </div>
     </div>
   );
