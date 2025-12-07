@@ -1,4 +1,4 @@
-import { Home, Globe, Plus, Bell, User, Film, Zap, MessageSquare } from "lucide-react";
+import { Home, Globe, Plus, Bell, User, Film, MessageSquare, Zap } from "lucide-react";
 import { PulseLogo } from "./PulseLogo";
 import { cn } from "@/lib/utils";
 
@@ -40,17 +40,42 @@ export const Navigation = ({
   unreadNotifications = 0,
 }: NavigationProps) => {
   if (isMobile) {
-    const leftItems = navItems.filter(
-      (i) => !i.highlight && ["home", "explore", "reels"].includes(i.id)
-    );
+    const leftItems = navItems.filter((i) => ["home", "explore"].includes(i.id));
     const centerItem = navItems.find((i) => i.highlight);
-    const rightItems = navItems.filter(
-      (i) => !i.highlight && ["messages", "notifications", "profile"].includes(i.id)
-    );
+    const rightItems = navItems.filter((i) => ["reels", "profile"].includes(i.id));
+    const topItems = navItems.filter((i) => ["messages", "notifications"].includes(i.id));
 
     return (
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-card/70 backdrop-blur-lg rounded-3xl shadow-2xl flex justify-between items-center px-4 py-3 z-50">
-        {/* Left side */}
+      <>
+        {/* Top header bar */}
+        <div className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-4 py-3 bg-card/80 backdrop-blur-md shadow-md glassmorphism">
+          <PulseLogo size="sm" />
+          <div className="flex space-x-3">
+            {topItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id)}
+                className="relative p-2 flex items-center justify-center"
+              >
+                <item.icon size={24} />
+                {item.id === "messages" && unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
+                {item.id === "notifications" && unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom nav bar */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[50%] max-w-md bg-card/50 backdrop-blur-xl glassmorphism rounded-3xl shadow-2xl flex justify-between items-center px-2 py-2 z-50">
+      {/* Left side */}
         <div className="flex space-x-6">
           {leftItems.map((item) => (
             <button
@@ -77,7 +102,7 @@ export const Navigation = ({
           </button>
         )}
 
-        {/* Right side */}
+           {/* Right side */}
         <div className="flex space-x-6">
           {rightItems.map((item) => (
             <button
@@ -90,22 +115,11 @@ export const Navigation = ({
             >
               <item.icon size={24} />
               <span className="text-[10px] mt-1">{item.label}</span>
-
-              {/* Badges */}
-              {item.id === "messages" && unreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {unreadMessages > 9 ? "9+" : unreadMessages}
-                </span>
-              )}
-              {item.id === "notifications" && unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                </span>
-              )}
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 

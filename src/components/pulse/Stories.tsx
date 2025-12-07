@@ -160,7 +160,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
                 </div>
                 {isVideo && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Video size={16} className="text-white drop-shadow-md" />
+                    <Video   size={16} className="text-white drop-shadow-md" />
                   </div>
                 )}
               </div>
