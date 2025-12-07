@@ -2,7 +2,7 @@ import { Home, Globe, Plus, Bell, User, Film, Zap, MessageSquare } from "lucide-
 import { PulseLogo } from "./PulseLogo";
 import { cn } from "@/lib/utils";
 
-type ViewType = "home" | "explore" | "Post" | "notifications" | "profile" | "reels" | "settings" | "messages";
+type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings" | "messages";
 
 interface NavigationProps {
   currentView: ViewType;
