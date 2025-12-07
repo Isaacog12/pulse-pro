@@ -15,7 +15,7 @@ interface NavigationProps {
 const navItems = [
   { id: "home" as const, icon: Home, label: "Feed" },
   { id: "explore" as const, icon: Globe, label: "Explore" },
-  { id: "create" as const, icon: Plus, label: "Create", highlight: true },
+  { id: "create" as const, icon: Plus, label: "Post", highlight: true },
   { id: "messages" as const, icon: MessageSquare, label: "Messages" },
   { id: "profile" as const, icon: User, label: "Profile" },
 ];
@@ -66,7 +66,7 @@ export const Navigation = ({ currentView, setView, isMobile, isPro, unreadMessag
 
       {/* Nav Items */}
       <div className="space-y-2 flex-1">
-        {[...navItems.filter(i => i.id !== "create"), { id: "notifications" as const, icon: Bell, label: "Alerts" }, { id: "reels" as const, icon: Film, label: "Reels" }].map((item) => (
+        {[...navItems, { id: "notifications" as const, icon: Bell, label: "Alerts" }, { id: "reels" as const, icon: Film, label: "Reels" }].map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
