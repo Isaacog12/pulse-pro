@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Heart, MessageSquare, Send, Bookmark, MoreVertical, CheckCircle, Pin, Lock, Repeat, Share2, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Heart, MessageSquare, Send, Bookmark, MoreVertical, CheckCircle, Pin, Lock, Repeat, Share2, Trash2, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +34,11 @@ interface PostCardProps {
   onViewProfile?: (userId: string) => void;
 }
 
+// Helper to check if URL is video
+const isVideoUrl = (url: string) => {
+  return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
+};
+
 export const PostCard = ({
   post,
   currentUserId,
@@ -46,6 +51,11 @@ export const PostCard = ({
   const [saved, setSaved] = useState(post.is_saved);
   const [likeAnim, setLikeAnim] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const isVideo = isVideoUrl(post.image_url);
 
   useEffect(() => {
     setLiked(post.is_liked);
@@ -97,6 +107,17 @@ export const PostCard = ({
   const handleShare = () => {
     navigator.clipboard?.writeText(`Check out this post by ${post.profile?.username}`);
     setShowMenu(false);
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const formatTime = (dateStr: string) => {
@@ -185,11 +206,50 @@ export const PostCard = ({
       </div>
 
       <div className="relative w-full bg-background" onDoubleClick={handleLike}>
-        <img
-          src={post.image_url}
-          className={cn("w-full h-auto max-h-[600px] object-contain mx-auto", post.filter)}
-          alt="Post"
-        />
+        {isVideo ? (
+          <>
+            <video
+              ref={videoRef}
+              src={post.image_url}
+              className="w-full h-auto max-h-[600px] object-contain mx-auto"
+              muted={isMuted}
+              playsInline
+              loop
+              onClick={togglePlayPause}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+            {/* Video controls overlay */}
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMuted(!isMuted);
+                }}
+                className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+              >
+                {isMuted ? (
+                  <VolumeX className="text-white" size={18} />
+                ) : (
+                  <Volume2 className="text-white" size={18} />
+                )}
+              </button>
+            </div>
+            {!isPlaying && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="p-4 rounded-full bg-black/50">
+                  <Play className="text-white" size={32} />
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <img
+            src={post.image_url}
+            className={cn("w-full h-auto max-h-[600px] object-contain mx-auto", post.filter)}
+            alt="Post"
+          />
+        )}
         {likeAnim && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Heart size={100} className="text-accent fill-current animate-heart-pop drop-shadow-2xl" />

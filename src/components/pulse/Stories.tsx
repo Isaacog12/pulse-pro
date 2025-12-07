@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Image as ImageIcon } from "lucide-react";
+import { Plus, Image as ImageIcon, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,11 @@ interface StoriesProps {
   stories: Story[];
   onStoryAdded: () => void;
 }
+
+// Helper to check if URL is video
+const isVideoUrl = (url: string) => {
+  return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
+};
 
 export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
   const [viewingStoryIndex, setViewingStoryIndex] = useState<number | null>(null);
@@ -97,12 +102,28 @@ export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
 
         {/* Options Dropdown */}
         {showOptions && (
-          <div className="absolute top-20 left-0 glass-strong rounded-xl p-2 shadow-xl z-20 w-32 flex flex-col gap-2 animate-scale-in">
+          <div className="absolute top-20 left-0 glass-strong rounded-xl p-2 shadow-xl z-20 w-36 flex flex-col gap-1 animate-scale-in">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (fileInputRef.current) {
+                  fileInputRef.current.accept = "image/*";
+                  fileInputRef.current.click();
+                }
+              }}
               className="flex items-center text-xs text-foreground p-2 hover:bg-secondary rounded transition-colors"
             >
-              <ImageIcon size={14} className="mr-2" /> Gallery
+              <ImageIcon size={14} className="mr-2" /> Photo
+            </button>
+            <button
+              onClick={() => {
+                if (fileInputRef.current) {
+                  fileInputRef.current.accept = "video/*";
+                  fileInputRef.current.click();
+                }
+              }}
+              className="flex items-center text-xs text-foreground p-2 hover:bg-secondary rounded transition-colors"
+            >
+              <Video size={14} className="mr-2" /> Video
             </button>
           </div>
         )}
@@ -110,32 +131,48 @@ export const Stories = ({ stories, onStoryAdded }: StoriesProps) => {
           type="file"
           ref={fileInputRef}
           className="hidden"
-          accept="image/*"
+          accept="image/*,video/*"
           onChange={handleFileSelect}
         />
       </div>
 
       {/* Story Items */}
-      {Object.values(groupedStories).map((story, index) => (
-        <div
-          key={story.id}
-          className="flex flex-col items-center flex-shrink-0 cursor-pointer transition-transform hover:scale-105"
-          onClick={() => setViewingStoryIndex(stories.findIndex(s => s.id === story.id))}
-        >
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-2xl bg-gradient-pulse">
-            <div className="bg-background w-full h-full rounded-[14px] overflow-hidden border-2 border-background">
-              <img
-                src={story.image_url}
-                alt={story.profile?.username || "Story"}
-                className="w-full h-full object-cover"
-              />
+      {Object.values(groupedStories).map((story, index) => {
+        const storyIsVideo = isVideoUrl(story.image_url);
+        return (
+          <div
+            key={story.id}
+            className="flex flex-col items-center flex-shrink-0 cursor-pointer transition-transform hover:scale-105"
+            onClick={() => setViewingStoryIndex(stories.findIndex(s => s.id === story.id))}
+          >
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-2xl bg-gradient-pulse">
+              <div className="bg-background w-full h-full rounded-[14px] overflow-hidden border-2 border-background">
+                {storyIsVideo ? (
+                  <video
+                    src={story.image_url}
+                    className="w-full h-full object-cover"
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={story.image_url}
+                    alt={story.profile?.username || "Story"}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {storyIsVideo && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Video size={16} className="text-white drop-shadow-lg" />
+                  </div>
+                )}
+              </div>
             </div>
+            <span className="text-xs mt-2 font-medium text-muted-foreground truncate w-16 text-center">
+              {story.profile?.username || "User"}
+            </span>
           </div>
-          <span className="text-xs mt-2 font-medium text-muted-foreground truncate w-16 text-center">
-            {story.profile?.username || "User"}
-          </span>
-        </div>
-      ))}
+        );
+      })}
 
       {stories.length === 0 && (
         <div className="flex items-center justify-center text-muted-foreground text-sm py-4">
