@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Image, Camera, Sparkles } from "lucide-react";
+import { X, Image, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WaveLoader } from "./WaveLoader";
@@ -24,7 +24,8 @@ interface CreatePostModalProps {
 export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
   const { user } = useAuth();
   const [step, setStep] = useState<"select" | "edit" | "caption">("select");
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [mediaData, setMediaData] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video">("image");
   const [selectedFilter, setSelectedFilter] = useState(FILTERS[0]);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,24 +35,27 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isVideo = file.type.startsWith("video/");
+    setMediaType(isVideo ? "video" : "image");
+
     const reader = new FileReader();
     reader.onload = (event) => {
-      setImageData(event.target?.result as string);
+      setMediaData(event.target?.result as string);
       setStep("edit");
     };
     reader.readAsDataURL(file);
   };
 
   const handlePost = async () => {
-    if (!imageData || !user) return;
+    if (!mediaData || !user) return;
     
     setLoading(true);
     
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,
-      image_url: imageData,
+      image_url: mediaData,
       caption: caption.trim() || null,
-      filter: selectedFilter.class || null,
+      filter: mediaType === "image" ? (selectedFilter.class || null) : null,
     });
 
     if (error) {
@@ -64,6 +68,8 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
     
     setLoading(false);
   };
+
+  const isVideo = mediaType === "video";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
@@ -109,71 +115,97 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
               <div className="flex gap-4">
                 <Button variant="gradient" onClick={() => fileInputRef.current?.click()}>
                   <Image size={18} className="mr-2" />
-                  Select from Gallery
+                  Photo
+                </Button>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <Video size={18} className="mr-2" />
+                  Video
                 </Button>
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={handleFileSelect}
               />
             </div>
           )}
 
-          {step === "edit" && imageData && (
+          {step === "edit" && mediaData && (
             <div>
               <div className="aspect-square max-h-[400px] mx-auto rounded-2xl overflow-hidden bg-background mb-6">
-                <img
-                  src={imageData}
-                  alt="Preview"
-                  className={cn("w-full h-full object-contain", selectedFilter.class)}
-                />
+                {isVideo ? (
+                  <video
+                    src={mediaData}
+                    className="w-full h-full object-contain"
+                    controls
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={mediaData}
+                    alt="Preview"
+                    className={cn("w-full h-full object-contain", selectedFilter.class)}
+                  />
+                )}
               </div>
 
-              {/* Filters */}
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-                {FILTERS.map((filter) => (
-                  <button
-                    key={filter.name}
-                    onClick={() => setSelectedFilter(filter)}
-                    className={cn(
-                      "flex flex-col items-center flex-shrink-0",
-                      selectedFilter.name === filter.name && "opacity-100",
-                      selectedFilter.name !== filter.name && "opacity-60 hover:opacity-80"
-                    )}
-                  >
-                    <div
+              {/* Filters - only for images */}
+              {!isVideo && (
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                  {FILTERS.map((filter) => (
+                    <button
+                      key={filter.name}
+                      onClick={() => setSelectedFilter(filter)}
                       className={cn(
-                        "w-16 h-16 rounded-xl overflow-hidden mb-2 ring-2 transition-all",
-                        selectedFilter.name === filter.name
-                          ? "ring-primary"
-                          : "ring-transparent"
+                        "flex flex-col items-center flex-shrink-0",
+                        selectedFilter.name === filter.name && "opacity-100",
+                        selectedFilter.name !== filter.name && "opacity-60 hover:opacity-80"
                       )}
                     >
-                      <img
-                        src={imageData}
-                        alt={filter.name}
-                        className={cn("w-full h-full object-cover", filter.class)}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground">{filter.name}</span>
-                  </button>
-                ))}
-              </div>
+                      <div
+                        className={cn(
+                          "w-16 h-16 rounded-xl overflow-hidden mb-2 ring-2 transition-all",
+                          selectedFilter.name === filter.name
+                            ? "ring-primary"
+                            : "ring-transparent"
+                        )}
+                      >
+                        <img
+                          src={mediaData}
+                          alt={filter.name}
+                          className={cn("w-full h-full object-cover", filter.class)}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">{filter.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isVideo && (
+                <p className="text-center text-muted-foreground text-sm">Filters are not available for videos</p>
+              )}
             </div>
           )}
 
-          {step === "caption" && imageData && (
+          {step === "caption" && mediaData && (
             <div className="flex gap-6">
               <div className="w-1/3 flex-shrink-0">
                 <div className="aspect-square rounded-2xl overflow-hidden bg-background">
-                  <img
-                    src={imageData}
-                    alt="Preview"
-                    className={cn("w-full h-full object-cover", selectedFilter.class)}
-                  />
+                  {isVideo ? (
+                    <video
+                      src={mediaData}
+                      className="w-full h-full object-cover"
+                      muted
+                    />
+                  ) : (
+                    <img
+                      src={mediaData}
+                      alt="Preview"
+                      className={cn("w-full h-full object-cover", selectedFilter.class)}
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex-1">

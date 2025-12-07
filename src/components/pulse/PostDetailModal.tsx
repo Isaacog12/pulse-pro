@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, Heart, MessageSquare, Bookmark, Send, CheckCircle, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Heart, MessageSquare, Bookmark, Send, CheckCircle, Loader2, Volume2, VolumeX, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,11 @@ interface Comment {
   };
 }
 
+// Helper to check if URL is video
+const isVideoUrl = (url: string) => {
+  return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
+};
+
 export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailModalProps) => {
   const { user } = useAuth();
   const [post, setPost] = useState<PostData | null>(null);
@@ -46,6 +51,11 @@ export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailMo
   const [likeCount, setLikeCount] = useState(0);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const isVideo = post ? isVideoUrl(post.image_url) : false;
 
   useEffect(() => {
     fetchPostData();
@@ -152,6 +162,17 @@ export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailMo
     setSubmitting(false);
   };
 
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -175,13 +196,52 @@ export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailMo
           </div>
         ) : post ? (
           <>
-            {/* Image */}
-            <div className="md:w-1/2 bg-black flex items-center justify-center">
-              <img
-                src={post.image_url}
-                alt=""
-                className="w-full h-full max-h-[50vh] md:max-h-[90vh] object-contain"
-              />
+            {/* Media */}
+            <div className="md:w-1/2 bg-black flex items-center justify-center relative">
+              {isVideo ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    src={post.image_url}
+                    className="w-full h-full max-h-[50vh] md:max-h-[90vh] object-contain cursor-pointer"
+                    muted={isMuted}
+                    playsInline
+                    loop
+                    onClick={togglePlayPause}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                  />
+                  {/* Video controls */}
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMuted(!isMuted);
+                      }}
+                      className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="text-white" size={18} />
+                      ) : (
+                        <Volume2 className="text-white" size={18} />
+                      )}
+                    </button>
+                  </div>
+                  {!isPlaying && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="p-4 rounded-full bg-black/50">
+                        <Play className="text-white" size={32} />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <img
+                  src={post.image_url}
+                  alt=""
+                  className="w-full h-full max-h-[50vh] md:max-h-[90vh] object-contain"
+                />
+              )}
             </div>
 
             {/* Details */}

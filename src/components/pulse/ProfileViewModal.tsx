@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle, Grid, Loader2 } from "lucide-react";
+import { X, CheckCircle, Grid, Loader2, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { FollowButton } from "./FollowButton";
@@ -21,6 +21,11 @@ interface ProfileViewModalProps {
   onClose: () => void;
   onViewPost?: (postId: string) => void;
 }
+
+// Helper to check if URL is video
+const isVideoUrl = (url: string) => {
+  return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
+};
 
 export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewModalProps) => {
   const { user } = useAuth();
@@ -189,27 +194,43 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
                   <span className="text-sm font-medium">Posts</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
-                  {posts.map((post) => (
-                    <div 
-                      key={post.id} 
-                      className={cn(
-                        "aspect-square group",
-                        onViewPost && "cursor-pointer"
-                      )}
-                      onClick={() => {
-                        if (onViewPost) {
-                          onClose();
-                          onViewPost(post.id);
-                        }
-                      }}
-                    >
-                      <img
-                        src={post.image_url}
-                        alt=""
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                      />
-                    </div>
-                  ))}
+                  {posts.map((post) => {
+                    const postIsVideo = isVideoUrl(post.image_url);
+                    return (
+                      <div 
+                        key={post.id} 
+                        className={cn(
+                          "aspect-square group relative",
+                          onViewPost && "cursor-pointer"
+                        )}
+                        onClick={() => {
+                          if (onViewPost) {
+                            onClose();
+                            onViewPost(post.id);
+                          }
+                        }}
+                      >
+                        {postIsVideo ? (
+                          <>
+                            <video
+                              src={post.image_url}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              muted
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Play size={20} className="text-white drop-shadow-lg" />
+                            </div>
+                          </>
+                        ) : (
+                          <img
+                            src={post.image_url}
+                            alt=""
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { X, ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Story {
@@ -19,13 +19,21 @@ interface StoryViewerProps {
   onClose: () => void;
 }
 
+// Helper to check if URL is video
+const isVideoUrl = (url: string) => {
+  return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
+};
+
 export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const currentStory = stories[currentIndex];
-  const STORY_DURATION = 5000; // 5 seconds per story
+  const isVideo = currentStory ? isVideoUrl(currentStory.image_url) : false;
+  const STORY_DURATION = isVideo ? 15000 : 5000; // 15s for video, 5s for image
 
   const goToNext = useCallback(() => {
     if (currentIndex < stories.length - 1) {
@@ -43,9 +51,9 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
     }
   }, [currentIndex]);
 
-  // Progress timer
+  // Progress timer for images
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || isVideo) return;
 
     const interval = setInterval(() => {
       setProgress((prev) => {
@@ -58,11 +66,40 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isPaused, goToNext]);
+  }, [isPaused, goToNext, isVideo, STORY_DURATION]);
+
+  // Handle video progress
+  useEffect(() => {
+    if (!isVideo || !videoRef.current) return;
+
+    const video = videoRef.current;
+    
+    const handleTimeUpdate = () => {
+      if (video.duration) {
+        setProgress((video.currentTime / video.duration) * 100);
+      }
+    };
+
+    const handleEnded = () => {
+      goToNext();
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
+
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, [isVideo, currentIndex, goToNext]);
 
   // Reset progress when story changes
   useEffect(() => {
     setProgress(0);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
   }, [currentIndex]);
 
   // Keyboard navigation
@@ -71,10 +108,11 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
       if (e.key === "ArrowRight") goToNext();
       if (e.key === "ArrowLeft") goToPrev();
       if (e.key === "Escape") onClose();
+      if (e.key === "m") setIsMuted(!isMuted);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNext, goToPrev, onClose]);
+  }, [goToNext, goToPrev, onClose, isMuted]);
 
   const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -85,6 +123,17 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
       goToPrev();
     } else if (x > (width * 2) / 3) {
       goToNext();
+    }
+  };
+
+  const handlePauseToggle = (paused: boolean) => {
+    setIsPaused(paused);
+    if (videoRef.current) {
+      if (paused) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(() => {});
+      }
     }
   };
 
@@ -99,6 +148,20 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
       >
         <X className="text-white" size={24} />
       </button>
+
+      {/* Mute button for video */}
+      {isVideo && (
+        <button
+          onClick={() => setIsMuted(!isMuted)}
+          className="absolute top-4 right-16 z-20 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+        >
+          {isMuted ? (
+            <VolumeX className="text-white" size={24} />
+          ) : (
+            <Volume2 className="text-white" size={24} />
+          )}
+        </button>
+      )}
 
       {/* Navigation arrows for desktop */}
       <button
@@ -123,11 +186,11 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
       <div
         className="relative w-full max-w-md h-[85vh] max-h-[800px] mx-4 rounded-2xl overflow-hidden cursor-pointer"
         onClick={handleTap}
-        onMouseDown={() => setIsPaused(true)}
-        onMouseUp={() => setIsPaused(false)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
+        onMouseDown={() => handlePauseToggle(true)}
+        onMouseUp={() => handlePauseToggle(false)}
+        onMouseLeave={() => handlePauseToggle(false)}
+        onTouchStart={() => handlePauseToggle(true)}
+        onTouchEnd={() => handlePauseToggle(false)}
       >
         {/* Progress bars */}
         <div className="absolute top-4 left-4 right-4 z-10 flex gap-1">
@@ -174,12 +237,24 @@ export const StoryViewer = ({ stories, initialIndex, onClose }: StoryViewerProps
           </div>
         </div>
 
-        {/* Story image */}
-        <img
-          src={currentStory.image_url}
-          alt="Story"
-          className="w-full h-full object-cover"
-        />
+        {/* Story content */}
+        {isVideo ? (
+          <video
+            ref={videoRef}
+            src={currentStory.image_url}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted={isMuted}
+            playsInline
+            loop={false}
+          />
+        ) : (
+          <img
+            src={currentStory.image_url}
+            alt="Story"
+            className="w-full h-full object-cover"
+          />
+        )}
 
         {/* Tap zones indicator (visible on hover) */}
         <div className="absolute inset-0 flex opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
