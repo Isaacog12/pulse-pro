@@ -202,11 +202,8 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
           {!isNewUser && (
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent flex items-center gap-2">
-                <TrendingUp size={20} className="text-blue-500" /> Explore
+                <TrendingUp size={20} className="text-yellow-400" /> Explore
               </h3>
-              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary/30 px-3 py-1 rounded-full border border-white/5">
-                <MapPin size={12} /> Global
-              </div>
             </div>
           )}
           
@@ -265,8 +262,8 @@ const UserRow = ({ profile, onFollowChange, onViewProfile }: { profile: UserProf
         {/* Text Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <p className="font-semibold text-sm text-foreground truncate group-hover:text-blue-400 transition-colors">{profile.username}</p>
-            {profile.is_verified && <span className="text-blue-500 text-[10px] bg-blue-500/10 p-0.5 rounded-full px-1">✓</span>}
+            <p className="font-semibold text-sm text-foreground truncate group-hover:text-yello-400 transition-colors">{profile.username}</p>
+            {profile.is_verified && <span className="text-yellow-400 text-[10px] bg-blue-500/10 p-0.5 rounded-full px-1">✓</span>}
             {profile.is_pro && (
               <span className="text-[9px] bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-1.5 py-px rounded-full font-bold shadow-sm">
                 PRO

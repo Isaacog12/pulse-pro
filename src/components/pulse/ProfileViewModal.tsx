@@ -148,7 +148,7 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
                 <div className="space-y-1 mb-4 mt-2">
                   <div className="flex items-center justify-center gap-1.5">
                     <h2 className="text-2xl font-bold text-foreground tracking-tight">{profile.username}</h2>
-                    {profile.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500/10" />}
+                    {profile.is_verified && <CheckCircle size={20} className="text-yellow-400 fill-blue-500/10" />}
                   </div>
                   {profile.bio && (
                     <p className="text-sm text-muted-foreground max-w-[280px] leading-relaxed mx-auto">

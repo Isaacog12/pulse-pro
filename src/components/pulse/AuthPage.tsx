@@ -158,7 +158,7 @@ export const AuthPage = () => {
                   focusedField === "username" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
                 )}>
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-blue-500" : "text-muted-foreground")} />
+                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-yellow-400" : "text-muted-foreground")} />
                   </div>
                   <Input
                     placeholder="Username"
@@ -179,7 +179,7 @@ export const AuthPage = () => {
               focusedField === "email" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
             )}>
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-blue-500" : "text-muted-foreground")} />
+                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-yellow-400" : "text-muted-foreground")} />
               </div>
               <Input
                 type="email"
@@ -201,7 +201,7 @@ export const AuthPage = () => {
                   focusedField === "password" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
                 )}>
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-blue-500" : "text-muted-foreground")} />
+                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-yellow-400" : "text-muted-foreground")} />
                   </div>
                   <Input
                     type={showPassword ? "text" : "password"}

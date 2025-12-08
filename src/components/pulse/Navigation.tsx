@@ -128,7 +128,7 @@ export const Navigation = ({
                     onClick={() => setView(item.id as ViewType)}
                     className={cn(
                       "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300",
-                      isActive ? "text-blue-500" : "text-muted-foreground/60 hover:text-foreground"
+                      isActive ? "text-blue-400" : "text-muted-foreground/60 hover:text-foreground"
                     )}
                   >
                     <div className={cn(
@@ -172,7 +172,7 @@ export const Navigation = ({
             className={cn(
               "flex items-center space-x-4 px-4 py-3.5 rounded-xl transition-all w-full relative group duration-300 ease-out",
               currentView === item.id
-                ? "bg-blue-500/10 text-blue-500 font-bold shadow-[0_0_20px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                ? "bg-blue-500/10 text-blue-400 font-bold shadow-[0_0_20px_rgba(59,130,246,0.1)] border border-blue-500/20"
                 : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             )}
           >
@@ -208,7 +208,7 @@ export const Navigation = ({
           
           <div className="flex items-center space-x-2 mb-2 relative z-10">
             <div className="p-1.5 bg-yellow-400/10 rounded-lg ring-1 ring-yellow-400/20">
-                <Zap className="text-yellow-400 fill-yellow-400" size={14} />
+                <Zap className="text-blue-400 fill-yellow-400" size={14} />
             </div>
             <span className="font-bold text-foreground text-sm">Pulse Pro</span>
           </div>
