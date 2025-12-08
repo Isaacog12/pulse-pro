@@ -24,11 +24,14 @@ interface NavigationProps {
 const navItems = [
   { id: "home" as const, icon: Home, label: "Feed" },
   { id: "explore" as const, icon: Globe, label: "Explore" },
-  { id: "reels" as const, icon: Film, label: "Reels" },
   { id: "create" as const, icon: Plus, label: "Post", highlight: true },
-  { id: "messages" as const, icon: MessageSquare, label: "Messages" },
-  { id: "notifications" as const, icon: Bell, label: "Notifications" },
+  { id: "reels" as const, icon: Film, label: "Reels" },
   { id: "profile" as const, icon: User, label: "Profile" },
+];
+
+const topNavItems = [
+  { id: "notifications" as const, icon: Bell, label: "Notifications" },
+  { id: "messages" as const, icon: MessageSquare, label: "Messages" },
 ];
 
 export const Navigation = ({
@@ -39,143 +42,152 @@ export const Navigation = ({
   unreadMessages = 0,
   unreadNotifications = 0,
 }: NavigationProps) => {
+  
   if (isMobile) {
-    const leftItems = navItems.filter((i) => ["home", "explore"].includes(i.id));
-    const centerItem = navItems.find((i) => i.highlight);
-    const rightItems = navItems.filter((i) => ["reels", "profile"].includes(i.id));
-    const topItems = navItems.filter((i) => ["messages", "notifications"].includes(i.id));
-
     return (
       <>
-        {/* Top header bar */}
-        <div className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-4 py-3 bg-card/80 backdrop-blur-md shadow-md glassmorphism">
-          <PulseLogo size="sm" />
-          <div className="flex space-x-3">
-            {topItems.map((item) => (
+        {/* Top Header - Classic Glass */}
+        <div className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 py-4 bg-background/40 backdrop-blur-2xl border-b border-white/10 shadow-sm supports-[backdrop-filter]:bg-background/40">
+          <div className="flex items-center gap-2">
+            <PulseLogo size="sm" />
+            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Pulse
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {topNavItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
-                className="relative p-2 flex items-center justify-center"
+                className="relative p-2 rounded-full hover:bg-white/10 transition-colors"
               >
-                <item.icon size={24} />
+                <item.icon size={22} strokeWidth={2} />
                 {item.id === "messages" && unreadMessages > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  <span className="absolute top-1 right-1 bg-blue-600 text-white text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold shadow-lg ring-2 ring-background">
                     {unreadMessages > 9 ? "9+" : unreadMessages}
                   </span>
                 )}
                 {item.id === "notifications" && unreadNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                  </span>
+                  <span className="absolute top-1.5 right-1.5 bg-red-500 w-2.5 h-2.5 rounded-full ring-2 ring-background animate-pulse" />
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Bottom nav bar */}
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[50%] max-w-md bg-card/50 backdrop-blur-xl glassmorphism rounded-3xl shadow-2xl flex justify-between items-center px-2 py-2 z-50">
-      {/* Left side */}
-        <div className="flex space-x-6">
-          {leftItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={cn(
-                "relative flex flex-col items-center justify-center transition-transform duration-200",
-                currentView === item.id ? "text-foreground scale-110" : "text-muted-foreground"
-              )}
-            >
-              <item.icon size={24} />
-              <span className="text-[10px] mt-1">{item.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* Bottom Navigation - Floating Glass Island */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-[400px]">
+          <div className="bg-background/60 backdrop-blur-3xl border border-white/15 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.12)] px-2 h-16 flex items-center justify-between relative ring-1 ring-white/5">
+            
+            {/* Grid Layout for Perfect Spacing */}
+            <div className="grid grid-cols-5 w-full items-center justify-items-center">
+              
+              {navItems.map((item) => {
+                const isActive = currentView === item.id;
+                
+                if (item.highlight) {
+                  return (
+                    <div key={item.id} className="relative -top-6">
+                      <button
+                        onClick={() => setView(item.id)}
+                        className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/40 transform transition-transform active:scale-95 hover:scale-105 ring-4 ring-background/50 backdrop-blur-sm"
+                      >
+                        <Plus className="text-white" size={28} strokeWidth={3} />
+                      </button>
+                    </div>
+                  );
+                }
 
-        {/* Center Create button */}
-        {centerItem && (
-          <button
-            onClick={() => setView(centerItem.id)}
-            className="bg-gradient-to-br from-pink-500 via-red-500 to-yellow-400 p-4 rounded-full shadow-xl -mt-6 border-4 border-card flex items-center justify-center"
-          >
-            <centerItem.icon size={28} className="text-white" />
-          </button>
-        )}
-
-           {/* Right side */}
-        <div className="flex space-x-6">
-          {rightItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={cn(
-                "relative flex flex-col items-center justify-center transition-transform duration-200",
-                currentView === item.id ? "text-foreground scale-110" : "text-muted-foreground"
-              )}
-            >
-              <item.icon size={24} />
-              <span className="text-[10px] mt-1">{item.label}</span>
-              </button>
-            ))}
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    className={cn(
+                      "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300",
+                      isActive ? "text-blue-500" : "text-muted-foreground/60 hover:text-foreground"
+                    )}
+                  >
+                    <div className={cn(
+                      "relative p-2 rounded-xl transition-all duration-300",
+                      isActive && "bg-blue-500/10"
+                    )}>
+                      <item.icon 
+                        size={24} 
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className={cn("transition-all", isActive && "scale-105")}
+                      />
+                      {isActive && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </>
     );
   }
 
-  // Desktop sidebar
+  // Desktop sidebar - Enhanced Glassy Theme
   return (
-    <div className="w-64 h-screen sticky top-0 p-6 flex flex-col border-r border-border/50 bg-card/30 backdrop-blur">
+    <div className="w-64 h-screen sticky top-0 p-6 flex flex-col border-r border-white/10 bg-background/20 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)]">
       {/* Logo */}
-      <div className="flex items-center space-x-2 mb-10 px-2 cursor-pointer group">
+      <div className="flex items-center space-x-3 mb-10 px-2 cursor-pointer group">
         <PulseLogo size="sm" />
-        <h1 className="text-2xl font-bold text-gradient tracking-tight ml-2">Pulse</h1>
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent tracking-tight">Pulse</h1>
       </div>
 
       {/* Nav Items */}
       <div className="space-y-2 flex-1">
-        {[...navItems].map((item) => (
+        {[...navItems.filter(i => !i.highlight), ...topNavItems, navItems.find(i => i.highlight)!].map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
             className={cn(
-              "flex items-center space-x-4 px-4 py-3 rounded-xl transition-all w-full relative",
+              "flex items-center space-x-4 px-4 py-3.5 rounded-xl transition-all w-full relative group duration-300 ease-out",
               currentView === item.id
-                ? "bg-gradient-to-r from-primary/20 to-transparent text-primary font-bold border-l-4 border-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                ? "bg-blue-500/10 text-blue-500 font-bold shadow-[0_0_20px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             )}
           >
-            <div className="relative">
-              <item.icon size={22} />
+            <div className="relative group-hover:scale-105 transition-transform">
+              <item.icon size={22} strokeWidth={currentView === item.id ? 2.5 : 2} />
               {item.id === "messages" && unreadMessages > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-sm ring-2 ring-background">
                   {unreadMessages > 9 ? "9+" : unreadMessages}
-                </span>
-              )}
-              {item.id === "notifications" && unreadNotifications > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
                 </span>
               )}
             </div>
             <span>{item.label}</span>
+            
+            {/* Hover Glow Effect for desktop */}
+            {currentView === item.id && (
+                 <div className="absolute inset-0 rounded-xl bg-blue-400/5 blur-lg -z-10" />
+            )}
           </button>
         ))}
       </div>
 
-      {/* Pro Upsell */}
+      {/* Pro Upsell - Glass Card */}
       {!isPro && (
-        <div className="p-4 glass rounded-2xl mt-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <Zap className="text-yellow-400" size={16} />
+        <div className="p-4 bg-gradient-to-br from-white/5 to-white/0 border border-white/10 rounded-2xl mt-4 backdrop-blur-md relative overflow-hidden group">
+          <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors" />
+          
+          <div className="flex items-center space-x-2 mb-2 relative z-10">
+            <div className="p-1.5 bg-yellow-400/10 rounded-lg ring-1 ring-yellow-400/20">
+                <Zap className="text-yellow-400 fill-yellow-400" size={14} />
+            </div>
             <span className="font-bold text-foreground text-sm">Pulse Pro</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">Unlock analytics & badge.</p>
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed relative z-10">Unlock analytics, badges & exclusive features.</p>
           <button
             onClick={() => setView("settings")}
-            className="w-full py-2 bg-foreground text-background font-bold rounded-lg text-xs hover:bg-foreground/90 transition-colors"
+            className="w-full py-2.5 bg-foreground text-background font-bold rounded-xl text-xs hover:opacity-90 transition-all shadow-lg relative z-10 active:scale-95"
           >
-            Upgrade
+            Upgrade Now
           </button>
         </div>
       )}
