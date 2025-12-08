@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom"; // 👈 IMPORT THIS
+import { createPortal } from "react-dom";
 import { Plus, Image as ImageIcon, Video, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,16 +29,41 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
   const [uploading, setUploading] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  
+  // Track viewed stories using local storage
+  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
-  // Group stories by user (showing the latest story for the thumbnail)
+  useEffect(() => {
+    // Load viewed stories from localStorage
+    const stored = localStorage.getItem("pulse_viewed_stories");
+    if (stored) {
+      setViewedStories(new Set(JSON.parse(stored)));
+    }
+  }, []);
+
+  const markStoryAsViewed = (storyId: string) => {
+    const newSet = new Set(viewedStories);
+    newSet.add(storyId);
+    setViewedStories(newSet);
+    localStorage.setItem("pulse_viewed_stories", JSON.stringify(Array.from(newSet)));
+  };
+
+  // Group stories by user
   const grouped = Object.values(
     stories.reduce((acc, s) => {
       if (!acc[s.user_id]) {
-        acc[s.user_id] = { ...s, count: 0 };
+        // Find if ANY story by this user is unviewed
+        acc[s.user_id] = { ...s, count: 0, hasUnviewed: false };
       }
       (acc[s.user_id] as any).count++;
+      
+      // If this specific story hasn't been viewed, mark the user group as having unviewed stories
+      if (!viewedStories.has(s.id)) {
+        (acc[s.user_id] as any).hasUnviewed = true;
+      }
+      
       return acc;
-    }, {} as Record<string, Story & { count: number }>)
+    }, {} as Record<string, Story & { count: number; hasUnviewed: boolean }>)
   );
 
   const uploadFileToStorage = async (file: File) => {
@@ -96,7 +121,10 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
   const openViewerForStory = (storyId: string) => {
     const idx = stories.findIndex((s) => s.id === storyId);
-    if (idx >= 0) setViewerIndex(idx);
+    if (idx >= 0) {
+      setViewerIndex(idx);
+      markStoryAsViewed(storyId); // Mark as viewed when opened
+    }
   };
 
   useEffect(() => {
@@ -109,7 +137,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
   return (
     <>
-      {/* Stories Rail - Ultra Glass Version */}
+      {/* Stories Rail */}
       <div className="w-full border-b border-white/5 bg-background/20 backdrop-blur-2xl pt-4 pb-5 shadow-sm relative z-10">
         <div className="flex space-x-4 overflow-x-auto px-4 scrollbar-hide snap-x snap-mandatory">
           
@@ -123,17 +151,14 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
               onClick={() => !uploading && setSheetOpen(true)}
               disabled={uploading}
             >
-              {/* Dashed Border container */}
-              <div className="w-full h-full rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 relative overflow-hidden group hover:border-primary/50 transition-colors">
+              <div className="w-full h-full rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 relative overflow-hidden group hover:border-amber-500/50 transition-colors">
                 {uploading ? (
-                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
                 ) : (
                   <>
-                    <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
-                    <Plus className="text-primary w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2.5} />
-                    
-                    {/* Small badge overlay */}
-                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-full flex items-center justify-center border-[2px] border-background shadow-sm">
+                    <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors" />
+                    <Plus className="text-amber-500 w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2.5} />
+                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-full flex items-center justify-center border-[2px] border-background shadow-sm">
                        <Plus className="text-white w-3 h-3" strokeWidth={3} />
                     </div>
                   </>
@@ -154,6 +179,8 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
           {/* User Stories */}
           {grouped.map((g) => {
             const isVideo = isVideoUrl(g.image_url || "");
+            const hasUnviewed = g.hasUnviewed;
+
             return (
               <div
                 key={g.id}
@@ -163,27 +190,29 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
                 {/* The Story Ring Container */}
                 <div className="relative w-[72px] h-[72px] sm:w-20 sm:h-20 transition-transform duration-300 ease-out group-hover:scale-105 group-active:scale-95">
                   
-                  {/* Premium Gradient Ring (Animated) */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-400 via-orange-500 to-fuchsia-600 animate-in fade-in zoom-in duration-500 bg-[length:200%_200%] animate-pulse-ring" />
+                  {/* RING LOGIC: Gold if unviewed, Grey if viewed */}
+                  <div className={cn(
+                    "absolute inset-0 rounded-full transition-all duration-500",
+                    hasUnviewed 
+                      ? "bg-gradient-to-tr from-amber-400 via-orange-500 to-yellow-600 animate-in fade-in" // Gold for new
+                      : "bg-white/20 border border-white/10" // Faded grey for viewed
+                  )} />
                   
-                  {/* Background gap */}
                   <div className="absolute inset-[2.5px] rounded-full bg-background" />
 
-                  {/* Image Container */}
                   <div className="absolute inset-[5px] rounded-full overflow-hidden bg-secondary ring-1 ring-white/10">
                     {isVideo ? (
-                      <video src={g.image_url} className="w-full h-full object-cover opacity-90" muted />
+                      <video src={g.image_url} className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} muted />
                     ) : (
                       <img
                         src={g.image_url}
                         alt={g.profile?.username || "story"}
-                        className="w-full h-full object-cover"
+                        className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")}
                         loading="lazy"
                       />
                     )}
                   </div>
 
-                  {/* Video Indicator Badge */}
                   {isVideo && (
                     <div className="absolute bottom-0 right-0 bg-black/60 backdrop-blur-md border border-white/20 p-1 rounded-full shadow-sm">
                       <Video size={10} className="text-white" fill="currentColor" />
@@ -191,7 +220,10 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
                   )}
                 </div>
 
-                <span className="text-[11px] sm:text-xs mt-1.5 text-foreground/80 font-medium truncate w-[74px] text-center group-hover:text-primary transition-colors">
+                <span className={cn(
+                  "text-[11px] sm:text-xs mt-1.5 font-medium truncate w-[74px] text-center transition-colors",
+                  hasUnviewed ? "text-foreground font-semibold" : "text-muted-foreground"
+                )}>
                   {g.profile?.username || "User"}
                 </span>
               </div>
@@ -200,34 +232,28 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
         </div>
       </div>
 
-      {/* Upload Bottom Sheet (Portal to Body for Safety) */}
+      {/* Upload Bottom Sheet (Portal) */}
       {sheetOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" 
             onClick={() => setSheetOpen(false)} 
           />
-          
-          {/* Content */}
           <div className="relative w-full max-w-sm bg-background/80 backdrop-blur-3xl border-t sm:border border-white/10 sm:rounded-[32px] shadow-2xl transition-all duration-300 ease-out animate-in slide-in-from-bottom-full sm:zoom-in-95">
             <div className="p-6 pb-8">
               <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mb-6 opacity-50" />
-              
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold tracking-tight mb-1 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">Create Story</h3>
                 <p className="text-sm text-muted-foreground">Share your moments with friends</p>
               </div>
-
               <div className="space-y-3">
                 <button
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-blue-500/20"
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-amber-500/20"
                   onClick={openGallery}
                 >
                   <ImageIcon size={20} strokeWidth={2.5} />
                   <span className="font-semibold">Select from Gallery</span>
                 </button>
-
                 <button
                   className="w-full p-4 rounded-2xl font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
                   onClick={() => setSheetOpen(false)}
@@ -241,11 +267,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
         document.body
       )}
 
-      {/* 🔴 THE CRITICAL FIX: 
-          We use createPortal to move the Viewer OUT of the component tree 
-          and attach it to the body. This prevents it from being covered by 
-          the mobile header or getting stuck in the flow.
-      */}
+      {/* Viewer Portal */}
       {viewerIndex !== null && createPortal(
         <div className="fixed inset-0 z-[9999] bg-black">
           <StoryViewer 
@@ -259,5 +281,3 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
     </>
   );
 };
-
-export default Stories;
