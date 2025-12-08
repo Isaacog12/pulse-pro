@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquare, Search, Plus } from "lucide-react";
+import { MessageCircleDashed, Search, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -166,7 +166,7 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
 
       {filteredConversations.length === 0 ? (
         <div className="text-center text-muted-foreground py-16">
-          <MessageSquare className="mx-auto mb-4 text-muted-foreground/50" size={48} />
+          <MessageCircleDashed className="mx-auto mb-4 text-muted-foreground/50" size={48} />
           <p className="text-lg font-medium">No messages yet</p>
           <p className="text-sm">Start a conversation with someone!</p>
         </div>

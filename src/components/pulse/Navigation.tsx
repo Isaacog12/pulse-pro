@@ -1,4 +1,4 @@
-import { Home, Globe, Plus, Bell, User, Film, MessageSquare, Zap } from "lucide-react";
+import { Home, Globe, Plus, Bell, User, Film, MessageCircleDashed, Zap } from "lucide-react";
 import { PulseLogo } from "./PulseLogo";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ const allNavOptions = [
   { id: "explore" as const, icon: Globe, label: "Explore" },
   { id: "reels" as const, icon: Film, label: "Reels" },
   { id: "create" as const, icon: Plus, label: "Post", highlight: true },
-  { id: "messages" as const, icon: MessageSquare, label: "Messages" },
+  { id: "messages" as const, icon: MessageCircleDashed, label: "Messages" },
   { id: "notifications" as const, icon: Bell, label: "Notifications" },
   { id: "profile" as const, icon: User, label: "Profile" },
 ];
