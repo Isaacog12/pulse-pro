@@ -16,7 +16,6 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
   const { user, profile, updateProfile } = useAuth();
   const [username, setUsername] = useState(profile?.username || "");
   const [bio, setBio] = useState(profile?.bio || "");
-  const [status, setStatus] = useState(profile?.status || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url || null);
   const [loading, setLoading] = useState(false);
@@ -69,7 +68,6 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
       await updateProfile({
         username: username.trim(),
         bio: bio.trim() || null,
-        status: status.trim() || null,
         avatar_url: avatarUrl,
       });
 
@@ -131,16 +129,6 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
             />
           </div>
 
-          {/* Status */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Status</label>
-            <Input
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              placeholder="What's on your mind?"
-              maxLength={50}
-            />
-          </div>
 
           {/* Bio */}
           <div className="space-y-2">

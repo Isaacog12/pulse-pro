@@ -117,7 +117,6 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
               <h2 className="text-2xl font-bold text-foreground">{profile.username}</h2>
               {profile.is_verified && <CheckCircle size={20} className="text-yellow-400 fill-current" />}
             </div>
-            {profile.status && <p className="text-sm text-primary mb-2">{profile.status}</p>}
             {profile.bio && <p className="text-muted-foreground text-sm mb-4 max-w-md">{profile.bio}</p>}
 
             <div className="flex justify-center sm:justify-start gap-8 mb-4">

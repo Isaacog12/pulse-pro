@@ -12,7 +12,6 @@ interface ProfileData {
   bio: string | null;
   is_verified: boolean;
   is_pro: boolean;
-  status: string | null;
   last_seen: string | null;
 }
 
