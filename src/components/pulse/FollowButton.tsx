@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserPlus, UserMinus, Loader2 } from "lucide-react";
+import { UserPlus, UserCheck, UserX, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,17 +11,19 @@ interface FollowButtonProps {
   onFollowChange?: () => void;
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
+  className?: string;
 }
 
 export const FollowButton = ({
   targetUserId,
   onFollowChange,
-  variant = "default",
   size = "default",
+  className,
 }: FollowButtonProps) => {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hovering, setHovering] = useState(false);
 
   useEffect(() => {
     if (user && targetUserId) {
@@ -43,7 +45,8 @@ export const FollowButton = ({
     setLoading(false);
   };
 
-  const handleFollow = async () => {
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent parent clicks (like navigating to profile)
     if (!user) return;
 
     setLoading(true);
@@ -70,7 +73,7 @@ export const FollowButton = ({
 
         if (error) throw error;
 
-        // Create notification for the followed user
+        // Notification
         await supabase.from("notifications").insert({
           user_id: targetUserId,
           from_user_id: user.id,
@@ -79,7 +82,7 @@ export const FollowButton = ({
         });
 
         setIsFollowing(true);
-        toast.success("Following!");
+        toast.success("You are now following this user!");
       }
 
       onFollowChange?.();
@@ -96,22 +99,36 @@ export const FollowButton = ({
 
   return (
     <Button
-      variant={isFollowing ? "outline" : variant}
       size={size}
       onClick={handleFollow}
       disabled={loading}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       className={cn(
-        "transition-all",
-        isFollowing && "hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+        "relative transition-all duration-300 font-semibold rounded-xl overflow-hidden active:scale-95",
+        // State Styles
+        isFollowing
+          ? "bg-secondary/30 backdrop-blur-md border border-white/10 text-foreground hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 shadow-sm" // Glassy "Following"
+          : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 border-0", // Gradient "Follow"
+        className
       )}
     >
       {loading ? (
         <Loader2 size={16} className="animate-spin" />
       ) : isFollowing ? (
-        <>
-          <UserMinus size={16} className="mr-2" />
-          Unfollow
-        </>
+        <span className="flex items-center group">
+          {hovering ? (
+            <>
+              <UserX size={16} className="mr-2" />
+              Unfollow
+            </>
+          ) : (
+            <>
+              <UserCheck size={16} className="mr-2 text-primary/80" />
+              Following
+            </>
+          )}
+        </span>
       ) : (
         <>
           <UserPlus size={16} className="mr-2" />

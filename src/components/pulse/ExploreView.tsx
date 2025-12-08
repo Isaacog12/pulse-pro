@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Loader2, Sparkles, X, Heart, MessageCircle, MapPin } from "lucide-react";
+import { Search, UserPlus, Loader2, Sparkles, X, Heart, MapPin, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { FollowButton } from "./FollowButton";
 import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
 
 interface Post {
   id: string;
   image_url: string;
-  likes_count?: number; // Optional: for grid overlay
+  likes_count?: number;
   comments_count?: number;
 }
 
@@ -39,7 +38,7 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
   const [showResults, setShowResults] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
 
-  // Debounce logic
+  // Debounce Search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.length >= 2) {
@@ -49,8 +48,7 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
         setSearchResults([]);
         setShowResults(false);
       }
-    }, 400); // 400ms delay
-
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -70,12 +68,9 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
 
   const fetchSuggestedUsers = async () => {
     if (!user) return;
-    
-    // Get currently following
     const { data: following } = await supabase.from("followers").select("following_id").eq("follower_id", user.id);
     const followingIds = following?.map((f) => f.following_id) || [];
 
-    // Fetch potential suggestions
     const { data, error } = await supabase
       .from("profiles")
       .select(`id, username, avatar_url, bio, is_verified, is_pro`)
@@ -83,9 +78,7 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
       .not("id", "in", followingIds.length > 0 ? `(${followingIds.join(",")})` : "()")
       .limit(isNewUser ? 8 : 4);
 
-    if (!error && data) {
-      setSuggestedUsers(data);
-    }
+    if (!error && data) setSuggestedUsers(data);
   };
 
   const searchUsers = async () => {
@@ -97,184 +90,197 @@ export const ExploreView = ({ posts, onViewProfile, onViewPost }: ExploreViewPro
       .ilike("username", `%${searchQuery}%`)
       .limit(10);
 
-    if (!error && data) {
-      setSearchResults(data);
-    }
+    if (!error && data) setSearchResults(data);
     setLoading(false);
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-20">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-          Explore
-        </h2>
-      </div>
-
-      {/* Search Bar - Floating Glass */}
-      <div className="relative mb-8 z-30">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
-          <Input
-            placeholder="Search for people..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 h-12 bg-background/50 backdrop-blur-xl border-border/50 focus:border-primary/50 focus:bg-background/80 transition-all rounded-2xl shadow-sm"
-          />
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-secondary rounded-full transition-colors"
-            >
-              <X size={14} className="text-muted-foreground" />
-            </button>
-          )}
-        </div>
-
-        {/* Search Results Dropdown */}
-        {showResults && (
-          <>
-            <div className="absolute top-full left-0 right-0 mt-2 glass-strong border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-              {loading ? (
-                <div className="p-4 space-y-3">
-                   {/* Skeletons */}
-                   {[1,2,3].map(i => (
-                     <div key={i} className="flex items-center gap-3">
-                       <div className="w-10 h-10 rounded-full bg-secondary/70 animate-pulse" />
-                       <div className="h-4 w-24 bg-secondary/70 rounded animate-pulse" />
-                     </div>
-                   ))}
-                </div>
-              ) : searchResults.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                   <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                   <p className="text-sm">No users found</p>
-                </div>
-              ) : (
-                <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
-                  {searchResults.map((profile) => (
-                    <UserRow
-                      key={profile.id}
-                      profile={profile}
-                      onFollowChange={() => {
-                        fetchSuggestedUsers();
-                        checkIfNewUser();
-                      }}
-                      onViewProfile={onViewProfile}
-                    />
-                  ))}
-                </div>
+    <div className="min-h-screen pb-24 sm:pb-8 relative">
+      
+      {/* Sticky Header & Search */}
+      <div className="sticky top-0 z-40 px-4 py-4 -mx-4 mb-6 bg-background/60 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+            <div className="relative bg-background/40 border border-white/10 rounded-2xl flex items-center shadow-sm group-focus-within:border-primary/30 group-focus-within:shadow-lg transition-all duration-300">
+              <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
+              <Input
+                placeholder="Search for people..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border-none bg-transparent h-12 focus-visible:ring-0 placeholder:text-muted-foreground/50"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="mr-3 p-1.5 hover:bg-secondary rounded-full text-muted-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
               )}
             </div>
-            {/* Backdrop */}
-            <div className="fixed inset-0 -z-10 bg-black/20 backdrop-blur-sm" onClick={() => setShowResults(false)} />
-          </>
-        )}
-      </div>
 
-      {/* Welcome Section (New Users) */}
-      {isNewUser && suggestedUsers.length > 0 && !searchQuery && (
-        <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="relative overflow-hidden rounded-3xl p-6 mb-6 border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-secondary/30">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Sparkles size={120} />
-            </div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 rounded-xl bg-primary/20 backdrop-blur-md">
-                  <Sparkles size={20} className="text-primary" />
+            {/* Dropdown Results */}
+            {showResults && (
+              <>
+                <div className="absolute top-full left-0 right-0 mt-3 bg-background/80 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-top-2 duration-200 z-50">
+                  {loading ? (
+                    <div className="p-4 space-y-3">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-secondary/50 animate-pulse" />
+                          <div className="h-4 w-24 bg-secondary/50 rounded animate-pulse" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Search className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                      {searchResults.map((profile) => (
+                        <UserRow
+                          key={profile.id}
+                          profile={profile}
+                          onFollowChange={() => { fetchSuggestedUsers(); checkIfNewUser(); }}
+                          onViewProfile={onViewProfile}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-xl font-bold">Welcome to Pulse!</h3>
-              </div>
-              <p className="text-muted-foreground mb-4 max-w-sm text-sm">
-                Your feed is looking a little empty. Follow some popular creators to get started.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <UserPlus size={16} /> Suggested for you
-            </h3>
-            <div className="bg-background/40 backdrop-blur-lg border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
-              {suggestedUsers.map((profile) => (
-                <UserRow
-                  key={profile.id}
-                  profile={profile}
-                  onFollowChange={fetchSuggestedUsers}
-                  onViewProfile={onViewProfile}
-                />
-              ))}
-            </div>
+                <div className="fixed inset-0 top-[80px] bg-black/40 backdrop-blur-[2px] z-40 animate-in fade-in" onClick={() => setShowResults(false)} />
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Discovery Grid */}
-      <div className="space-y-4">
-         {!isNewUser && (
-           <h3 className="text-lg font-semibold flex items-center gap-2">
-             <MapPin size={18} className="text-primary" /> Discover
-           </h3>
-         )}
-         
-         <div className="grid grid-cols-3 gap-1 sm:gap-4 pb-10">
-           {posts.map((post) => (
-             <div
-               key={post.id}
-               className="group relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-secondary/30"
-               onClick={() => onViewPost(post.id)}
-             >
-               <img
-                 src={post.image_url}
-                 alt="Post"
-                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                 loading="lazy"
-               />
-               
-               {/* Hover Overlay */}
-               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4 text-white">
-                  <div className="flex items-center gap-1">
-                    <Heart size={18} fill="white" />
-                    <span className="text-sm font-bold">Like</span>
+      <div className="max-w-3xl mx-auto px-1">
+        
+        {/* New User Welcome */}
+        {isNewUser && suggestedUsers.length > 0 && !searchQuery && (
+          <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="relative overflow-hidden rounded-[32px] p-8 mb-8 border border-white/10 bg-gradient-to-br from-blue-600/20 via-purple-600/10 to-background shadow-2xl">
+              <div className="absolute top-0 right-0 p-8 opacity-20 animate-pulse" style={{ animationDuration: '4s' }}>
+                <Sparkles size={140} className="text-blue-400" />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/5 text-xs font-medium text-white mb-4 backdrop-blur-md">
+                  <Sparkles size={12} className="text-yellow-400" /> New to Pulse?
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Welcome Aboard!</h3>
+                <p className="text-white/60 mb-6 max-w-sm text-sm leading-relaxed">
+                  Your feed is looking a little empty. Here are some top creators to help you get started.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 px-2">
+                <UserPlus size={14} /> Suggested for you
+              </h3>
+              <div className="bg-background/30 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-lg">
+                {suggestedUsers.map((profile) => (
+                  <UserRow
+                    key={profile.id}
+                    profile={profile}
+                    onFollowChange={fetchSuggestedUsers}
+                    onViewProfile={onViewProfile}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Discovery Grid */}
+        <div className="space-y-6">
+          {!isNewUser && (
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent flex items-center gap-2">
+                <TrendingUp size={20} className="text-blue-500" /> Explore
+              </h3>
+              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary/30 px-3 py-1 rounded-full border border-white/5">
+                <MapPin size={12} /> Global
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 md:gap-4">
+            {posts.map((post) => (
+              <div
+                key={post.id}
+                className="group relative aspect-[4/5] sm:aspect-square cursor-pointer overflow-hidden rounded-xl bg-secondary/20 shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
+                onClick={() => onViewPost(post.id)}
+              >
+                <img
+                  src={post.image_url}
+                  alt="Post"
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  loading="lazy"
+                />
+                
+                {/* Modern Hover Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
+                  <div className="flex items-center gap-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+                    <div className="flex items-center gap-1.5 text-white/90">
+                      <Heart size={18} className="fill-white/20" />
+                      <span className="text-xs font-bold">Like</span>
+                    </div>
                   </div>
-               </div>
-             </div>
-           ))}
-         </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// Sub-component for Cleaner Code
+// ==========================================
+// Reusable Glassy User Row
+// ==========================================
 const UserRow = ({ profile, onFollowChange, onViewProfile }: { profile: UserProfile, onFollowChange: () => void, onViewProfile: (id: string) => void }) => {
   return (
-    <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
-      <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => onViewProfile(profile.id)}>
-        <div className="relative">
-           <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-transparent to-transparent group-hover:from-primary group-hover:to-purple-400 transition-colors">
-             <img
-               src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`}
-               alt={profile.username}
-               className="w-full h-full rounded-full object-cover bg-secondary border-2 border-background"
-             />
-           </div>
+    <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-all duration-300 group cursor-pointer" onClick={() => onViewProfile(profile.id)}>
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        
+        {/* Avatar with Glow */}
+        <div className="relative flex-shrink-0">
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 rounded-full blur-md group-hover:blur-lg transition-all duration-500 opacity-0 group-hover:opacity-100" />
+          <div className="relative w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-white/5 to-white/10 group-hover:from-blue-500 group-hover:to-purple-500 transition-colors duration-500">
+            <img
+              src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`}
+              alt={profile.username}
+              className="w-full h-full rounded-full object-cover bg-background border-2 border-background"
+            />
+          </div>
         </div>
         
+        {/* Text Info */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="font-semibold text-sm text-foreground truncate">{profile.username}</p>
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <p className="font-semibold text-sm text-foreground truncate group-hover:text-blue-400 transition-colors">{profile.username}</p>
             {profile.is_verified && <span className="text-blue-500 text-[10px] bg-blue-500/10 p-0.5 rounded-full px-1">✓</span>}
-            {profile.is_pro && <span className="text-[9px] bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-1.5 py-0.5 rounded font-bold">PRO</span>}
+            {profile.is_pro && (
+              <span className="text-[9px] bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-1.5 py-px rounded-full font-bold shadow-sm">
+                PRO
+              </span>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+          <p className="text-xs text-muted-foreground truncate max-w-[200px] group-hover:text-muted-foreground/80">
             {profile.bio || "No bio yet"}
           </p>
         </div>
       </div>
-      <div className="pl-2">
+
+      {/* Action Button */}
+      <div className="pl-3" onClick={(e) => e.stopPropagation()}>
         <FollowButton targetUserId={profile.id} onFollowChange={onFollowChange} size="sm" />
       </div>
     </div>

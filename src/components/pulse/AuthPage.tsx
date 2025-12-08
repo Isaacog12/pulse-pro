@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,8 +20,30 @@ export const AuthPage = () => {
   const [resetSent, setResetSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  // Load remembered email on mount
+  // Enhanced Password Strength Logic
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: "", color: "bg-muted" };
+    
+    let score = 0;
+    if (pass.length > 7) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+    switch (score) {
+      case 0: return { score: 1, label: "Too Weak", color: "bg-red-500/50" };
+      case 1: return { score: 1, label: "Weak", color: "bg-red-500" };
+      case 2: return { score: 2, label: "Medium", color: "bg-yellow-500" };
+      case 3: return { score: 3, label: "Strong", color: "bg-blue-500" };
+      case 4: return { score: 4, label: "Secure", color: "bg-green-500" };
+      default: return { score: 0, label: "", color: "bg-muted" };
+    }
+  };
+
+  const strength = getPasswordStrength(password);
+
   useEffect(() => {
     const rememberedEmail = localStorage.getItem("pulse_remembered_email");
     if (rememberedEmail) {
@@ -36,48 +58,30 @@ export const AuthPage = () => {
 
     try {
       if (view === "forgot") {
-        setResetSent(true);
+        setTimeout(() => setResetSent(true), 1500); // Mock for now
         return;
       }
 
       if (view === "signup") {
         if (!username.trim()) {
           toast.error("Please enter a username");
+          setLoading(false);
           return;
         }
-
         const { error } = await signUp(email, password, username);
-
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please log in.");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Account created, check your email to activate your account.");
-        }
+        if (error) throw error;
+        toast.success("Account created! Please check your email.");
       }
 
       if (view === "login") {
         const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          // Save or remove remembered email
-          if (rememberMe) {
-            localStorage.setItem("pulse_remembered_email", email);
-          } else {
-            localStorage.removeItem("pulse_remembered_email");
-          }
-        }
+        if (error) throw error;
+        
+        if (rememberMe) localStorage.setItem("pulse_remembered_email", email);
+        else localStorage.removeItem("pulse_remembered_email");
       }
-    } catch {
-      toast.error("An unexpected error occurred. Try again later.");
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -88,234 +92,224 @@ export const AuthPage = () => {
   const isForgot = view === "forgot";
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden selection:bg-primary/30">
-
-      {/* Background effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-primary/20 rounded-full blur-[150px] animate-pulse"
-          style={{ animationDuration: "8s" }}
-        />
-        <div
-          className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-accent/15 rounded-full blur-[150px] animate-pulse"
-          style={{ animationDuration: "10s" }}
-        />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      
+      {/* Dynamic Background Effects */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: "8s" }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-purple-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: "10s" }} />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
 
-      <div className="z-10 w-full max-w-md flex flex-col items-center animate-fade-in">
-
+      <div className="z-10 w-full max-w-[400px] flex flex-col items-center">
+        
         {/* Logo */}
-        <div className="mb-8 transform hover:scale-110 transition-transform duration-500 cursor-pointer animate-scale-in" style={{ animationDelay: "0.1s" }}>
+        <div className="mb-8 cursor-pointer hover:scale-105 transition-transform duration-500 ease-out">
           <PulseLogo size="lg" animated />
         </div>
 
-        {/* Card */}
-        <div 
-          className="w-full glass-strong p-8 rounded-3xl shadow-[0_0_50px_-12px_hsl(var(--primary)/0.3)] relative overflow-hidden animate-scale-in"
-          style={{ animationDelay: "0.2s" }}
-        >
+        {/* Main Glass Card */}
+        <div className="w-full bg-background/40 backdrop-blur-3xl border border-white/10 p-8 rounded-[32px] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden group animate-in zoom-in-95 duration-500">
+          
+          {/* Subtle Shine */}
+          <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/5 to-transparent -rotate-45 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
 
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 
-              className={cn(
-                "text-4xl font-bold text-foreground mb-2 tracking-tight transition-all duration-300",
-                "animate-fade-in"
-              )}
-              style={{ animationDelay: "0.3s" }}
-            >
-              {isSignup ? "Join the Pulse" : isForgot ? "Reset Password" : "Welcome Back"}
+          <div className="text-center mb-8 relative z-10">
+            <h1 className="text-3xl font-bold text-foreground mb-2 tracking-tight transition-all">
+              {isSignup ? "Create Account" : isForgot ? "Reset Password" : "Welcome Back"}
             </h1>
-
-            <p 
-              className="text-muted-foreground text-sm font-medium animate-fade-in"
-              style={{ animationDelay: "0.4s" }}
-            >
-              {isSignup
-                ? "Experience the next generation of social."
-                : isForgot
-                ? "Enter your email to receive a reset link."
-                : "Enter your credentials to access."}
+            <p className="text-sm text-muted-foreground font-medium">
+              {isSignup ? "Join Pulse to connect with friends" : isForgot ? "Enter email to restore access" : "Sign in to continue"}
             </p>
           </div>
 
-          {/* Tabs */}
+          {/* Tab Switcher */}
           {!isForgot && (
-            <div 
-              className="flex bg-background/50 p-1.5 rounded-2xl mb-8 border border-border/30 animate-fade-in"
-              style={{ animationDelay: "0.5s" }}
-            >
-              <button
-                onClick={() => setView("login")}
-                className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300",
-                  isLogin
-                    ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg scale-[1.02]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                Log In
-              </button>
-
-              <button
-                onClick={() => setView("signup")}
-                className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300",
-                  isSignup
-                    ? "bg-gradient-to-r from-accent to-accent/80 text-accent-foreground shadow-lg scale-[1.02]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                Sign Up
-              </button>
+            <div className="flex bg-black/20 p-1 rounded-2xl mb-6 relative z-10 border border-white/5">
+              {(["login", "signup"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 capitalize relative overflow-hidden",
+                    view === v
+                      ? "text-white shadow-lg"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  )}
+                >
+                  {view === v && (
+                    <div className="absolute inset-0 bg-secondary rounded-xl -z-10" />
+                  )}
+                  {v === "login" ? "Log In" : "Sign Up"}
+                </button>
+              ))}
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            {/* Username (signup only) */}
+          <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
+            
+            {/* Username */}
             {isSignup && (
-              <div className="relative animate-fade-in" style={{ animationDelay: "0.6s" }}>
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User size={20} className="text-muted-foreground" />
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className={cn(
+                  "relative group transition-all duration-300 rounded-2xl border",
+                  focusedField === "username" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
+                )}>
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-blue-500" : "text-muted-foreground")} />
+                  </div>
+                  <Input
+                    placeholder="Username"
+                    className="pl-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onFocus={() => setFocusedField("username")}
+                    onBlur={() => setFocusedField(null)}
+                    required={isSignup}
+                  />
                 </div>
-                <Input
-                  type="text"
-                  placeholder="Username"
-                  className="pl-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required={isSignup}
-                />
               </div>
             )}
 
             {/* Email */}
-            <div 
-              className="relative animate-fade-in" 
-              style={{ animationDelay: isSignup ? "0.7s" : "0.6s" }}
-            >
+            <div className={cn(
+              "relative group transition-all duration-300 rounded-2xl border",
+              focusedField === "email" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
+            )}>
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail size={20} className="text-muted-foreground" />
+                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-blue-500" : "text-muted-foreground")} />
               </div>
               <Input
                 type="email"
                 placeholder="Email Address"
-                className="pl-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
+                className="pl-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setFocusedField("email")}
+                onBlur={() => setFocusedField(null)}
                 required
               />
             </div>
 
-            {/* Password (not for forgot) */}
+            {/* Password */}
             {!isForgot && (
-              <div 
-                className="animate-fade-in"
-                style={{ animationDelay: isSignup ? "0.8s" : "0.7s" }}
-              >
-                <div className="relative group">
+              <div className="space-y-3 animate-in slide-in-from-bottom-2 fade-in duration-300">
+                <div className={cn(
+                  "relative group transition-all duration-300 rounded-2xl border",
+                  focusedField === "password" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
+                )}>
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock size={20} className="text-muted-foreground" />
+                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-blue-500" : "text-muted-foreground")} />
                   </div>
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    className="pl-12 pr-12 transition-all duration-300 focus:scale-[1.01] focus:shadow-lg focus:shadow-primary/10"
+                    className="pl-11 pr-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    minLength={6}
+                    onFocus={() => setFocusedField("password")}
+                    onBlur={() => setFocusedField(null)}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-all duration-200 hover:scale-110"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
-                {isLogin && (
-                  <div 
-                    className="flex items-center justify-between mt-3 animate-fade-in"
-                    style={{ animationDelay: "0.8s" }}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="remember" 
-                        checked={rememberMe}
-                        onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                        className="transition-transform duration-200 hover:scale-110"
-                      />
-                      <label 
-                        htmlFor="remember" 
-                        className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                      >
-                        Remember me
-                      </label>
+                {/* Password Strength Meter */}
+                {isSignup && (
+                  <div className={cn("space-y-2 overflow-hidden transition-all duration-500", password ? "max-h-20 opacity-100" : "max-h-0 opacity-0")}>
+                    <div className="flex justify-between items-center px-1">
+                       <span className={cn("text-xs font-bold transition-colors duration-300", strength.color.replace("bg-", "text-"))}>
+                         {strength.label}
+                       </span>
+                       <span className="text-[10px] text-muted-foreground">{password.length}/8 chars</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setView("forgot");
-                        setResetSent(false);
-                      }}
-                      className="text-xs text-muted-foreground hover:text-primary font-medium transition-all duration-200 hover:translate-x-1"
-                    >
-                      Forgot Password?
-                    </button>
+                    <div className="flex gap-1.5 h-1.5 px-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "h-full flex-1 rounded-full transition-all duration-500 ease-out",
+                            i <= strength.score ? strength.color : "bg-secondary/50"
+                          )}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Success message */}
+            {/* Remember & Forgot */}
+            {isLogin && (
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center space-x-2 group">
+                  <Checkbox 
+                    id="remember" 
+                    checked={rememberMe}
+                    onCheckedChange={(c) => setRememberMe(!!c)}
+                    className="border-white/20 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  />
+                  <label htmlFor="remember" className="text-xs font-medium text-muted-foreground cursor-pointer select-none group-hover:text-foreground transition-colors">
+                    Remember me
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setView("forgot"); setResetSent(false); }}
+                  className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+
+            {/* Submit Button */}
             {resetSent ? (
-              <div className="bg-green-500/20 text-green-400 p-4 rounded-xl text-center text-sm font-bold border border-green-500/30 animate-scale-in">
-                Check your email!
+              <div className="bg-green-500/10 text-green-400 p-4 rounded-2xl text-center text-sm font-bold border border-green-500/20 animate-in zoom-in-95 flex items-center justify-center gap-2">
+                <Check size={16} /> Check your inbox!
               </div>
             ) : (
               <Button
                 type="submit"
                 disabled={loading}
-                variant="gradient"
-                size="xl"
                 className={cn(
-                  "w-full mt-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98] animate-fade-in",
+                  "w-full h-12 rounded-2xl font-bold shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] mt-2",
+                  "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-blue-500/25"
                 )}
-                style={{ animationDelay: isSignup ? "0.9s" : "0.9s" }}
               >
                 {loading ? <WaveLoader /> : (
-                  <span className="flex items-center group">
-                    {isForgot ? "Send Link" : isSignup ? "Create Account" : "Continue"}
-                    <ArrowRight size={20} className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                  <span className="flex items-center gap-2">
+                    {isForgot ? "Send Reset Link" : isSignup ? "Create Account" : "Sign In"}
+                    <ArrowRight size={18} />
                   </span>
                 )}
               </Button>
             )}
 
-            {/* Back to login */}
+            {/* Back Button */}
             {isForgot && (
               <button
                 type="button"
                 onClick={() => setView("login")}
-                className="w-full py-3 text-muted-foreground font-bold hover:text-foreground flex items-center justify-center transition-all duration-200 hover:-translate-x-1 group animate-fade-in"
+                className="w-full py-2 text-muted-foreground font-bold hover:text-foreground flex items-center justify-center transition-colors group"
               >
-                <ArrowLeft size={16} className="mr-2 transition-transform duration-300 group-hover:-translate-x-1" /> Back to Login
+                <ArrowLeft size={16} className="mr-2 transition-transform group-hover:-translate-x-1" /> Back to Login
               </button>
             )}
           </form>
         </div>
 
-        {/* Footer text */}
-        <p 
-          className="text-xs text-muted-foreground mt-6 text-center animate-fade-in"
-          style={{ animationDelay: "1s" }}
-        >
-          By continuing, you agree to our Terms of Service and Privacy Policy
+        {/* Footer */}
+        <p className="text-xs text-muted-foreground/50 mt-8 text-center max-w-xs">
+          By continuing, you agree to Pulse's Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>
