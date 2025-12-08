@@ -19,6 +19,7 @@ import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateLastSeen } from "@/hooks/useUpdateLastSeen";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 type ViewType = "home" | "explore" | "create" | "notifications" | "profile" | "reels" | "settings" | "messages";
 
@@ -58,6 +59,7 @@ interface Story {
 const Index = () => {
   const { user, profile, loading: authLoading } = useAuth();
   useUpdateLastSeen(); // Track user online status
+  
   const [currentView, setCurrentView] = useState<ViewType>("home");
   const [isMobile, setIsMobile] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -72,6 +74,7 @@ const Index = () => {
   } | null>(null);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
   const [viewingPostId, setViewingPostId] = useState<string | null>(null);
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -183,18 +186,14 @@ const Index = () => {
   const fetchStories = async () => {
     if (!user) return;
 
-    // First get the list of users the current user follows
     const { data: followingData } = await supabase
       .from("followers")
       .select("following_id")
       .eq("follower_id", user.id);
 
     const followingIds = followingData?.map((f) => f.following_id) || [];
-    
-    // Include the current user's stories + stories from people they follow
     const userIdsToFetch = [user.id, ...followingIds];
 
-    // Get stories from last 24 hours
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
@@ -234,7 +233,7 @@ const Index = () => {
     return <AuthPage />;
   }
 
-  // Handle create view
+  // Handle create view (Mobile Fullscreen)
   if (currentView === "create") {
     return (
       <CreatePostModal
@@ -248,9 +247,10 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground relative selection:bg-primary/20">
+      
       <div className="flex">
-        {/* Desktop Navigation */}
+        {/* Desktop Navigation Sidebar */}
         {!isMobile && (
           <Navigation
             currentView={currentView}
@@ -260,56 +260,58 @@ const Index = () => {
           />
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 max-w-2xl mx-auto pb-24 md:pb-8">
-          {/* Mobile Header */}
-          {isMobile && (
-            <header className="sticky top-0 z-40 glass-strong px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <PulseLogo size="sm" />
-                <h1 className="text-xl font-bold text-gradient">Pulse</h1>
-              </div>
-            </header>
+        {/* Main Content Area */}
+        <main 
+          className={cn(
+            "flex-1 w-full transition-all duration-300",
+            // MOBILE: Add padding top/bottom to clear the fixed headers/nav
+            isMobile ? "pt-[88px] pb-28" : "md:pl-0 md:pt-8 md:pr-8 max-w-2xl mx-auto"
           )}
+        >
+          {/* Note: We removed the duplicate <header> here because the Navigation component 
+              already renders the fixed top header on mobile. This fixes the double-header issue. */}
 
           {/* Views */}
           {currentView === "home" && (
-            <div>
+            <div className="animate-in fade-in duration-500">
               <Stories stories={stories} onStoryAdded={fetchStories} />
-              <div className="px-4">
+              
+              <div className="px-0 sm:px-4 mt-4">
                 {loading ? (
-                  <div className="flex justify-center py-10">
+                  <div className="flex justify-center py-20">
                     <PulseLoader />
                   </div>
                 ) : posts.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground animate-fade-in">
+                  <div className="text-center py-20 text-muted-foreground bg-secondary/20 rounded-3xl mx-4 border border-dashed border-white/10">
                     <p className="text-lg font-medium">Your feed is empty</p>
-                    <p className="text-sm mt-2">Follow people to see their posts here, or explore to discover new content!</p>
+                    <p className="text-sm mt-2 max-w-xs mx-auto">Follow people to see their posts here, or check explore!</p>
                   </div>
                 ) : (
-                  posts.map((post) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={user.id}
-                      onViewComments={() => setSelectedPostId(post.id)}
-                      onPostDeleted={fetchPosts}
-                      onViewProfile={(userId) => setViewingProfileId(userId)}
-                    />
-                  ))
+                  <div className="space-y-6">
+                    {posts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        currentUserId={user.id}
+                        onViewComments={() => setSelectedPostId(post.id)}
+                        onPostDeleted={fetchPosts}
+                        onViewProfile={(userId) => setViewingProfileId(userId)}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
           {currentView === "profile" && (
-            <div className="p-4">
+            <div className="animate-in slide-in-from-right-4 duration-300">
               <UserProfile onOpenSettings={() => setCurrentView("settings")} />
             </div>
           )}
 
           {currentView === "explore" && (
-            <div className="p-4">
+            <div className="px-4 animate-in slide-in-from-right-4 duration-300">
               <ExploreView 
                 posts={posts} 
                 onViewProfile={(userId) => setViewingProfileId(userId)}
@@ -319,7 +321,7 @@ const Index = () => {
           )}
 
           {currentView === "messages" && !activeChat && (
-            <div className="p-4">
+            <div className="p-4 animate-in slide-in-from-right-4 duration-300">
               <MessagesView
                 onSelectConversation={(convId, otherUser) =>
                   setActiveChat({ conversationId: convId, otherUser })
@@ -330,7 +332,7 @@ const Index = () => {
           )}
 
           {currentView === "messages" && activeChat && (
-            <div className="p-4">
+            <div className="h-[calc(100vh-140px)] md:h-[calc(100vh-40px)] animate-in slide-in-from-right-8 duration-300">
               <ChatView
                 conversationId={activeChat.conversationId}
                 otherUser={activeChat.otherUser}
@@ -340,28 +342,26 @@ const Index = () => {
           )}
 
           {currentView === "notifications" && (
-            <div className="p-4">
+            <div className="animate-in slide-in-from-right-4 duration-300">
               <NotificationsView />
             </div>
           )}
 
           {currentView === "settings" && (
-            <div className="p-4">
+            <div className="animate-in slide-in-from-right-4 duration-300">
               <SettingsView onBack={() => setCurrentView("profile")} />
             </div>
           )}
 
           {currentView === "reels" && (
-            <div className="p-4">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Reels</h2>
-              <div className="text-center text-muted-foreground py-16">
-                <p>Reels feature coming soon...</p>
-              </div>
+            <div className="p-4 text-center py-32 animate-in fade-in">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent mb-4">Reels</h2>
+              <p className="text-muted-foreground">Coming soon to Pulse Pro...</p>
             </div>
           )}
         </main>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation (Fixed Bottom) */}
         {isMobile && (
           <Navigation
             currentView={currentView}
@@ -370,15 +370,19 @@ const Index = () => {
                 setShowCreateModal(true);
               } else {
                 setCurrentView(view);
+                // Reset states when switching main tabs
+                if (view !== "messages") setActiveChat(null);
               }
             }}
             isMobile={true}
             isPro={profile?.is_pro || false}
+            unreadMessages={0} // Connect to real count if available
+            unreadNotifications={0}
           />
         )}
       </div>
 
-      {/* Comments Sheet */}
+      {/* Modals & Sheets */}
       {selectedPostId && (
         <CommentsSheet
           postId={selectedPostId}
@@ -386,7 +390,6 @@ const Index = () => {
         />
       )}
 
-      {/* Create Modal for mobile */}
       {showCreateModal && (
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}
@@ -397,7 +400,6 @@ const Index = () => {
         />
       )}
 
-      {/* New Message Modal */}
       {showNewMessageModal && (
         <UserSearchModal
           onClose={() => setShowNewMessageModal(false)}
@@ -412,7 +414,6 @@ const Index = () => {
         />
       )}
 
-      {/* Profile View Modal */}
       {viewingProfileId && (
         <ProfileViewModal
           userId={viewingProfileId}
@@ -421,7 +422,6 @@ const Index = () => {
         />
       )}
 
-      {/* Post Detail Modal */}
       {viewingPostId && (
         <PostDetailModal
           postId={viewingPostId}
