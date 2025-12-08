@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon } from "lucide-react";
+import { Plus, Image as ImageIcon, Video, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,10 +29,13 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
-  // group stories by user
+  // Group stories by user (showing the latest story for the thumbnail)
   const grouped = Object.values(
     stories.reduce((acc, s) => {
-      if (!acc[s.user_id]) acc[s.user_id] = { ...s, count: 0 } as Story & { count: number };
+      // We keep the existing entry to preserve order, or update count
+      if (!acc[s.user_id]) {
+        acc[s.user_id] = { ...s, count: 0 };
+      }
       (acc[s.user_id] as any).count++;
       return acc;
     }, {} as Record<string, Story & { count: number }>)
@@ -66,7 +69,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
       if (dbErr) throw dbErr;
 
-      toast.success("Story uploaded");
+      toast.success("Story uploaded successfully");
       onStoryAdded();
       return publicUrl;
     } catch (err) {
@@ -106,114 +109,155 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
   return (
     <>
-      <div className="flex space-x-4 p-4 overflow-x-auto scrollbar-hide pb-6">
-        {/* Add Story */}
-        <div className="flex flex-col items-center flex-shrink-0 relative">
-          <div
-            className={cn(
-              "relative w-16 h-16 sm:w-20 sm:h-20 cursor-pointer rounded-2xl p-[2px] bg-gradient-pulse transition-transform hover:scale-105",
-              uploading && "opacity-60"
-            )}
-            onClick={() => setSheetOpen(true)}
-            role="button"
-            aria-label="Add story"
-          >
-            <div className="w-full h-full rounded-[12px] flex items-center justify-center bg-secondary/40 border-2 border-dashed border-muted-foreground/30">
-              {uploading ? (
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Plus className="text-muted-foreground" />
+      {/* Stories Rail */}
+      <div className="w-full border-b border-border/40 bg-background/50 backdrop-blur-sm pt-4 pb-5">
+        <div className="flex space-x-4 overflow-x-auto px-4 scrollbar-hide snap-x snap-mandatory">
+          
+          {/* Add Story Button */}
+          <div className="flex flex-col items-center flex-shrink-0 relative snap-start">
+            <button
+              className={cn(
+                "relative w-[72px] h-[72px] sm:w-20 sm:h-20 rounded-full p-[3px] transition-transform hover:scale-105 active:scale-95",
+                uploading && "opacity-70 cursor-wait"
               )}
-            </div>
-          </div>
-          <span className="text-xs mt-2 font-medium text-muted-foreground">Add Story</span>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept="image/*,video/*"
-            onChange={handleFileSelect}
-          />
-        </div>
-
-        {/* Story Avatars */}
-        {grouped.map((g) => {
-          const isVideo = isVideoUrl(g.image_url || "");
-          return (
-            <div
-              key={g.id}
-              className="flex flex-col items-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => openViewerForStory(g.id)}
+              onClick={() => !uploading && setSheetOpen(true)}
+              disabled={uploading}
             >
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-2xl bg-gradient-pulse">
-                <div className="bg-background w-full h-full rounded-[14px] overflow-hidden border-2 border-background">
-                  {isVideo ? (
-                    <video src={g.image_url} className="w-full h-full object-cover" muted />
-                  ) : (
-                    <img
-                      src={g.image_url}
-                      alt={g.profile?.username || "story"}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                {isVideo && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Video   size={16} className="text-white drop-shadow-md" />
-                  </div>
+              {/* Dashed Border container */}
+              <div className="w-full h-full rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-secondary/30 relative overflow-hidden group">
+                {uploading ? (
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+                    <Plus className="text-primary w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2.5} />
+                    
+                    {/* Small badge overlay */}
+                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-[2px] border-background">
+                       <Plus className="text-primary-foreground w-3 h-3" strokeWidth={3} />
+                    </div>
+                  </>
                 )}
               </div>
-              <span className="text-xs mt-2 text-muted-foreground font-medium truncate w-16 text-center">
-                {g.profile?.username || "User"}
-              </span>
-            </div>
-          );
-        })}
+            </button>
+            <span className="text-[11px] sm:text-xs mt-1.5 font-medium text-muted-foreground">My Story</span>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+            />
+          </div>
+
+          {/* User Stories */}
+          {grouped.map((g) => {
+            const isVideo = isVideoUrl(g.image_url || "");
+            return (
+              <div
+                key={g.id}
+                className="flex flex-col items-center flex-shrink-0 cursor-pointer group snap-start"
+                onClick={() => openViewerForStory(g.id)}
+              >
+                {/* The Story Ring Container */}
+                <div className="relative w-[72px] h-[72px] sm:w-20 sm:h-20 transition-transform duration-300 ease-out group-hover:scale-105 group-active:scale-95">
+                  
+                  {/* Premium Gradient Ring */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-400 via-orange-500 to-fuchsia-600 animate-in fade-in zoom-in duration-500" />
+                  
+                  {/* Background gap (creates the separation between ring and image) */}
+                  <div className="absolute inset-[2.5px] rounded-full bg-background" />
+
+                  {/* Image Container */}
+                  <div className="absolute inset-[5px] rounded-full overflow-hidden bg-secondary ring-1 ring-black/5">
+                    {isVideo ? (
+                      <video src={g.image_url} className="w-full h-full object-cover opacity-90" muted />
+                    ) : (
+                      <img
+                        src={g.image_url}
+                        alt={g.profile?.username || "story"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                  </div>
+
+                  {/* Video Indicator Badge */}
+                  {isVideo && (
+                    <div className="absolute bottom-0 right-0 bg-black/60 backdrop-blur-md border border-white/20 p-1 rounded-full shadow-sm">
+                      <Video size={10} className="text-white" fill="currentColor" />
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-[11px] sm:text-xs mt-1.5 text-foreground/80 font-medium truncate w-[74px] text-center">
+                  {g.profile?.username || "User"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Bottom Sheet */}
+      {/* Upload Bottom Sheet */}
       <div
         className={cn(
-          "fixed inset-0 z-40 pointer-events-none transition-opacity",
-          sheetOpen ? "opacity-100 pointer-events-auto" : "opacity-0"
+          "fixed inset-0 z-50 flex items-end justify-center sm:items-center pointer-events-none",
+          sheetOpen ? "pointer-events-auto" : ""
         )}
-        aria-hidden={!sheetOpen}
       >
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSheetOpen(false)} />
+        {/* Backdrop */}
+        <div 
+          className={cn(
+            "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+            sheetOpen ? "opacity-100" : "opacity-0"
+          )} 
+          onClick={() => setSheetOpen(false)} 
+        />
+        
+        {/* Content */}
         <div
           className={cn(
-            "absolute left-0 right-0 bottom-0 mx-auto w-full max-w-md rounded-t-2xl bg-background/95 border border-border shadow-2xl transition-transform",
-            sheetOpen ? "translate-y-0" : "translate-y-full"
+            "relative w-full max-w-sm bg-background/90 backdrop-blur-xl border-t sm:border border-border/50 sm:rounded-2xl shadow-2xl transition-all duration-300 ease-out transform",
+            sheetOpen ? "translate-y-0 opacity-100 scale-100" : "translate-y-full opacity-0 sm:translate-y-10 sm:scale-95"
           )}
-          style={{ transitionDuration: "260ms" }}
         >
-          <div className="p-4">
-            <div className="w-12 h-1 rounded-full bg-muted-foreground/40 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground text-center mb-2">Add to story</h3>
-            <p className="text-xs text-muted-foreground text-center mb-4">Choose a photo or video from your gallery</p>
+          <div className="p-6 pb-8">
+            <div className="w-12 h-1.5 rounded-full bg-muted mx-auto mb-6 opacity-50" />
+            
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold tracking-tight mb-1">Create Story</h3>
+              <p className="text-sm text-muted-foreground">Share your moments with friends</p>
+            </div>
 
-            <button
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-transparent hover:bg-secondary/50 transition"
-              onClick={openGallery}
-            >
-              <ImageIcon size={18} />
-              <span className="font-medium">Choose From Gallery</span>
-            </button>
+            <div className="space-y-3">
+              <button
+                className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
+                onClick={openGallery}
+              >
+                <ImageIcon size={20} strokeWidth={2.5} />
+                <span className="font-semibold">Select from Gallery</span>
+              </button>
 
-            <button
-              className="w-full text-sm text-muted-foreground py-2"
-              onClick={() => setSheetOpen(false)}
-            >
-              Cancel
-            </button>
+              <button
+                className="w-full p-4 rounded-xl font-medium text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
+                onClick={() => setSheetOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Story Viewer */}
+      {/* Story Viewer Overlay */}
       {viewerIndex !== null && (
-        <StoryViewer stories={stories} initialIndex={viewerIndex} onClose={() => setViewerIndex(null)} />
+        <StoryViewer 
+          stories={stories} 
+          initialIndex={viewerIndex} 
+          onClose={() => setViewerIndex(null)} 
+        />
       )}
     </>
   );
