@@ -108,6 +108,11 @@
     @apply bg-white/10 rounded-full hover:bg-white/20;
   }
 
+  /* Add inside @layer utilities or at the bottom of index.css */
+.ease-out-expo {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
   /* -- Premium Glassmorphism -- */
   /* Standard Glass */
   .glass {
