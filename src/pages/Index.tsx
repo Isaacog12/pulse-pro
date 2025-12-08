@@ -82,6 +82,27 @@ const Index = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // 1. DEEP LINKING LOGIC
+  useEffect(() => {
+    // Only run if user is logged in
+    if (!user) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const postIdParam = params.get("post");
+    const profileIdParam = params.get("profile");
+
+    if (postIdParam) {
+      setViewingPostId(postIdParam);
+      // Clean URL after handling to prevent re-opening on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    if (profileIdParam) {
+      setViewingProfileId(profileIdParam);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user]); // Re-run when user logs in
+
   useEffect(() => {
     if (user) {
       fetchPosts();
@@ -112,7 +133,6 @@ const Index = () => {
   const fetchPosts = async () => {
     if (!user) return;
 
-    // First get the list of users the current user follows
     const { data: followingData } = await supabase
       .from("followers")
       .select("following_id")
@@ -142,7 +162,6 @@ const Index = () => {
       return;
     }
 
-    // Get likes, comments, and saved status for each post
     const postsWithCounts = await Promise.all(
       (postsData || []).map(async (post) => {
         const { count: likesCount } = await supabase
@@ -268,9 +287,6 @@ const Index = () => {
             isMobile ? "pt-[88px] pb-28" : "md:pl-0 md:pt-8 md:pr-8 max-w-2xl mx-auto"
           )}
         >
-          {/* Note: We removed the duplicate <header> here because the Navigation component 
-              already renders the fixed top header on mobile. This fixes the double-header issue. */}
-
           {/* Views */}
           {currentView === "home" && (
             <div className="animate-in fade-in duration-500">
@@ -370,13 +386,12 @@ const Index = () => {
                 setShowCreateModal(true);
               } else {
                 setCurrentView(view);
-                // Reset states when switching main tabs
                 if (view !== "messages") setActiveChat(null);
               }
             }}
             isMobile={true}
             isPro={profile?.is_pro || false}
-            unreadMessages={0} // Connect to real count if available
+            unreadMessages={0} 
             unreadNotifications={0}
           />
         )}

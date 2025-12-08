@@ -127,8 +127,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
                     
                     {/* Metadata */}
                     <div className="flex items-center justify-center md:justify-start gap-4 mt-3 text-xs text-muted-foreground/60">
-                      <span className="flex items-center gap-1"><MapPin size={12} /> Global</span>
-                      <span className="flex items-center gap-1"><Calendar size={12} /> Joined 2024</span>
+                      <span className="flex items-center gap-1"><Calendar size={12} /> Joined 2025</span>
                     </div>
                   </div>
 

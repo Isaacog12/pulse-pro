@@ -3,6 +3,7 @@ import { Heart, MessageSquare, Send, Bookmark, MoreVertical, CheckCircle, Pin, L
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner"; // Ensure you have this import
 
 interface Post {
   id: string;
@@ -104,8 +105,29 @@ export const PostCard = ({
     onPostDeleted?.();
   };
 
-  const handleShare = () => {
-    navigator.clipboard?.writeText(`Check out this post by ${post.profile?.username}`);
+  // ✅ FIXED SHARE LOGIC
+  const handleShare = async () => {
+    // 1. Create Deep Link (e.g., https://yourapp.com/?post=123)
+    // We use window.location.origin to get the base URL automatically
+    const link = `${window.location.origin}?post=${post.id}`;
+
+    // 2. Try Mobile Native Share
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Post by ${post.profile?.username}`,
+          text: post.caption || "Check out this post on Pulse",
+          url: link,
+        });
+      } catch (err) {
+        console.log("Share canceled");
+      }
+    } else {
+      // 3. Fallback: Copy to Clipboard (Desktop)
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copied to clipboard!");
+    }
+    
     setShowMenu(false);
   };
 
@@ -195,6 +217,7 @@ export const PostCard = ({
                 <Trash2 size={16} className="mr-2" /> Delete Post
               </button>
             )}
+            {/* Share Button in Menu */}
             <button
               onClick={handleShare}
               className="w-full text-left px-4 py-3 text-foreground hover:bg-secondary flex items-center text-sm transition-colors"
@@ -219,7 +242,6 @@ export const PostCard = ({
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
             />
-            {/* Video controls overlay */}
             <div className="absolute bottom-4 right-4 flex gap-2">
               <button
                 onClick={(e) => {
@@ -271,6 +293,7 @@ export const PostCard = ({
             >
               <MessageSquare size={28} />
             </Button>
+            {/* Share Button in Action Bar */}
             <Button variant="icon" size="icon" onClick={handleShare} className="transition-transform active:scale-125 hover:text-green-400">
               <Send size={28} />
             </Button>
