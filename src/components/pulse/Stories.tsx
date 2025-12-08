@@ -22,7 +22,6 @@ interface StoriesProps {
 }
 
 const isVideoUrl = (url: string) => {
-  // Check for Base64 video or file extension
   return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
 };
 
@@ -31,45 +30,74 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   
-  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
+  // Track index for the Viewer
+  const [initialGroupIndex, setInitialGroupIndex] = useState<number | null>(null);
+  
+  // REAL DB STATE: Set of Story IDs that the current user has viewed
+  const [viewedStoryIds, setViewedStoryIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const stored = localStorage.getItem("pulse_viewed_stories");
-    if (stored) {
-      setViewedStories(new Set(JSON.parse(stored)));
+    if (user && stories.length > 0) {
+      fetchViewedStatus();
     }
-  }, []);
+  }, [user, stories]);
 
-  const markStoryAsViewed = (storyId: string) => {
-    const newSet = new Set(viewedStories);
-    newSet.add(storyId);
-    setViewedStories(newSet);
-    localStorage.setItem("pulse_viewed_stories", JSON.stringify(Array.from(newSet)));
+  // 1. Fetch which stories I have already seen from DB
+  const fetchViewedStatus = async () => {
+    if (!user) return;
+    const storyIds = stories.map(s => s.id);
+    
+    const { data } = await supabase
+      .from("story_views")
+      .select("story_id")
+      .eq("viewer_id", user.id)
+      .in("story_id", storyIds);
+
+    if (data) {
+      const viewedSet = new Set(data.map(v => v.story_id));
+      setViewedStoryIds(viewedSet);
+    }
   };
 
+  // 2. Refresh views when closing viewer to update Grey/Gold rings
+  const handleViewerClose = () => {
+    setInitialGroupIndex(null);
+    fetchViewedStatus();
+  };
+
+  // 3. Grouping Logic (Updated for DB state)
   const grouped = Object.values(
-    stories.reduce((acc, s) => {
-      if (!acc[s.user_id]) {
-        acc[s.user_id] = { ...s, count: 0, hasUnviewed: false };
+    stories.reduce((acc, story) => {
+      if (!acc[story.user_id]) {
+        acc[story.user_id] = { 
+          ...story, 
+          stories: [], // Store all stories for this user
+          hasUnviewed: false 
+        };
       }
-      (acc[s.user_id] as any).count++;
-      if (!viewedStories.has(s.id)) {
-        (acc[s.user_id] as any).hasUnviewed = true;
+      
+      // Add story to the group array
+      if (!acc[story.user_id].stories) acc[story.user_id].stories = [];
+      acc[story.user_id].stories.push(story);
+
+      // If ID is NOT in our DB set, it's Unviewed (Gold)
+      if (!viewedStoryIds.has(story.id)) {
+        acc[story.user_id].hasUnviewed = true;
       }
       return acc;
-    }, {} as Record<string, Story & { count: number; hasUnviewed: boolean }>)
+    }, {} as Record<string, Story & { stories: Story[]; hasUnviewed: boolean }>)
   );
 
-  // 🛠️ CHANGED: Use Base64 instead of Storage Bucket
+  // Sorting: Users with New Stories (Gold) go first
+  const sortedGroups = grouped.sort((a, b) => (b.hasUnviewed ? 1 : 0) - (a.hasUnviewed ? 1 : 0));
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Optional: Size check (limit to 5MB to prevent DB bloating)
-    if (file.size > 5 * 1024 * 1024) {
-        toast.error("File is too large (Max 5MB)");
+    if (file.size > 10 * 1024 * 1024) {
+        toast.error("File is too large (Max 10MB)");
         return;
     }
 
@@ -83,15 +111,15 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
       try {
         const { error } = await supabase.from("stories").insert({
           user_id: user.id,
-          image_url: base64Data, // Saving the image data directly to DB
-          // type: isVideo ? "video" : "image" // Assuming your table has a 'type' column, otherwise remove this line
+          image_url: base64Data,
+          type: isVideo ? "video" : "image"
         });
 
         if (error) throw error;
 
-        toast.success("Story added to your day!");
+        toast.success("Story added!");
         onStoryAdded();
-        setSheetOpen(false); // Close modal
+        setSheetOpen(false);
       } catch (error) {
         console.error("Error posting story:", error);
         toast.error("Failed to post story");
@@ -101,28 +129,12 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
       }
     };
 
-    reader.readAsDataURL(file); // This triggers the onload above
+    reader.readAsDataURL(file);
   };
 
   const openGallery = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
-
-  const openViewerForStory = (storyId: string) => {
-    const idx = stories.findIndex((s) => s.id === storyId);
-    if (idx >= 0) {
-      setViewerIndex(idx);
-      markStoryAsViewed(storyId);
-    }
-  };
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setViewerIndex(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <>
@@ -164,41 +176,56 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
             />
           </div>
 
-          {grouped.map((g) => {
-            const isVideo = isVideoUrl(g.image_url || "");
-            const hasUnviewed = g.hasUnviewed;
+          {/* User Stories Rail */}
+          {sortedGroups.map((group, idx) => {
+            // Display the LATEST story in the thumbnail
+            const latestStory = group.stories[group.stories.length - 1];
+            const isVideo = isVideoUrl(latestStory.image_url || "");
+            const hasUnviewed = group.hasUnviewed;
+
             return (
               <div
-                key={g.id}
+                key={group.user_id}
                 className="flex flex-col items-center flex-shrink-0 cursor-pointer group snap-start"
-                onClick={() => openViewerForStory(g.id)}
+                onClick={() => setInitialGroupIndex(idx)}
               >
                 <div className="relative w-[72px] h-[72px] sm:w-20 sm:h-20 transition-transform duration-300 ease-out group-hover:scale-105 group-active:scale-95">
+                  
+                  {/* RING LOGIC: Gold vs Grey based on DB state */}
                   <div className={cn(
                     "absolute inset-0 rounded-full transition-all duration-500",
                     hasUnviewed 
                       ? "bg-gradient-to-tr from-amber-400 via-orange-500 to-yellow-600 animate-in fade-in" 
                       : "bg-white/20 border border-white/10"
                   )} />
+                  
                   <div className="absolute inset-[2.5px] rounded-full bg-background" />
+
                   <div className="absolute inset-[5px] rounded-full overflow-hidden bg-secondary ring-1 ring-white/10">
                     {isVideo ? (
-                      <video src={g.image_url} className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} muted />
+                      <video src={latestStory.image_url} className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} muted />
                     ) : (
-                      <img src={g.image_url} alt="story" className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} loading="lazy" />
+                      <img
+                        src={latestStory.image_url}
+                        alt="story"
+                        className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")}
+                        loading="lazy"
+                      />
                     )}
                   </div>
+
                   {isVideo && (
                     <div className="absolute bottom-0 right-0 bg-black/60 backdrop-blur-md border border-white/20 p-1 rounded-full shadow-sm">
                       <Video size={10} className="text-white" fill="currentColor" />
                     </div>
                   )}
                 </div>
+
                 <span className={cn(
                   "text-[11px] sm:text-xs mt-1.5 font-medium truncate w-[74px] text-center transition-colors",
                   hasUnviewed ? "text-foreground font-semibold" : "text-muted-foreground"
                 )}>
-                  {g.profile?.username || "User"}
+                  {group.profile?.username || "User"}
                 </span>
               </div>
             );
@@ -237,9 +264,14 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
         document.body
       )}
 
-      {viewerIndex !== null && createPortal(
+      {/* Viewer Portal - NOW PASSING GROUPED STORIES */}
+      {initialGroupIndex !== null && createPortal(
         <div className="fixed inset-0 z-[9999] bg-black">
-          <StoryViewer stories={stories} initialIndex={viewerIndex} onClose={() => setViewerIndex(null)} />
+          <StoryViewer 
+            storyGroups={sortedGroups} 
+            initialGroupIndex={initialGroupIndex} 
+            onClose={handleViewerClose} 
+          />
         </div>,
         document.body
       )}
