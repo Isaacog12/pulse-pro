@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { StoryViewer } from "./StoryViewer";
+import { StoryViewer, StoryGroup } from "./StoryViewer"; // Import types from Viewer
 
 interface Story {
   id: string;
@@ -30,67 +30,53 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   
-  // Track index for the Viewer
-  const [initialGroupIndex, setInitialGroupIndex] = useState<number | null>(null);
-  
-  // REAL DB STATE: Set of Story IDs that the current user has viewed
-  const [viewedStoryIds, setViewedStoryIds] = useState<Set<string>>(new Set());
+  // Local Storage for viewed state
+  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (user && stories.length > 0) {
-      fetchViewedStatus();
+    const stored = localStorage.getItem("pulse_viewed_stories");
+    if (stored) {
+      setViewedStories(new Set(JSON.parse(stored)));
     }
-  }, [user, stories]);
+  }, []);
 
-  // 1. Fetch which stories I have already seen from DB
-  const fetchViewedStatus = async () => {
-    if (!user) return;
-    const storyIds = stories.map(s => s.id);
+  const markStoryAsViewed = (storyId: string) => {
+    const newSet = new Set(viewedStories);
+    newSet.add(storyId);
+    setViewedStories(newSet);
+    localStorage.setItem("pulse_viewed_stories", JSON.stringify(Array.from(newSet)));
+  };
+
+  // 🛠️ FIXED GROUPING LOGIC
+  // This ensures every group has a valid 'stories' array
+  const groupedMap = stories.reduce((acc, s) => {
+    if (!acc[s.user_id]) {
+      acc[s.user_id] = {
+        user_id: s.user_id,
+        username: s.profile?.username || "User",
+        avatar_url: s.profile?.avatar_url || null,
+        stories: [], // Initialize empty array
+        hasUnviewed: false
+      };
+    }
     
-    const { data } = await supabase
-      .from("story_views")
-      .select("story_id")
-      .eq("viewer_id", user.id)
-      .in("story_id", storyIds);
+    // Add story to the array
+    acc[s.user_id].stories.push(s);
 
-    if (data) {
-      const viewedSet = new Set(data.map(v => v.story_id));
-      setViewedStoryIds(viewedSet);
+    // Check if this specific story is unviewed
+    if (!viewedStories.has(s.id)) {
+      acc[s.user_id].hasUnviewed = true;
     }
-  };
+    
+    return acc;
+  }, {} as Record<string, StoryGroup>);
 
-  // 2. Refresh views when closing viewer to update Grey/Gold rings
-  const handleViewerClose = () => {
-    setInitialGroupIndex(null);
-    fetchViewedStatus();
-  };
-
-  // 3. Grouping Logic (Updated for DB state)
-  const grouped = Object.values(
-    stories.reduce((acc, story) => {
-      if (!acc[story.user_id]) {
-        acc[story.user_id] = { 
-          ...story, 
-          stories: [], // Store all stories for this user
-          hasUnviewed: false 
-        };
-      }
-      
-      // Add story to the group array
-      if (!acc[story.user_id].stories) acc[story.user_id].stories = [];
-      acc[story.user_id].stories.push(story);
-
-      // If ID is NOT in our DB set, it's Unviewed (Gold)
-      if (!viewedStoryIds.has(story.id)) {
-        acc[story.user_id].hasUnviewed = true;
-      }
-      return acc;
-    }, {} as Record<string, Story & { stories: Story[]; hasUnviewed: boolean }>)
+  // Convert map to array and sort (Unviewed first)
+  const sortedGroups = Object.values(groupedMap).sort((a, b) => 
+    (b.hasUnviewed ? 1 : 0) - (a.hasUnviewed ? 1 : 0)
   );
-
-  // Sorting: Users with New Stories (Gold) go first
-  const sortedGroups = grouped.sort((a, b) => (b.hasUnviewed ? 1 : 0) - (a.hasUnviewed ? 1 : 0));
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,19 +152,12 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
               </div>
             </button>
             <span className="text-[11px] sm:text-xs mt-1.5 font-medium text-muted-foreground">My Story</span>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,video/*"
-              onChange={handleFileSelect}
-            />
+            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
           </div>
 
           {/* User Stories Rail */}
           {sortedGroups.map((group, idx) => {
-            // Display the LATEST story in the thumbnail
+            // Safe access: We know stories exists now
             const latestStory = group.stories[group.stories.length - 1];
             const isVideo = isVideoUrl(latestStory.image_url || "");
             const hasUnviewed = group.hasUnviewed;
@@ -187,11 +166,11 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
               <div
                 key={group.user_id}
                 className="flex flex-col items-center flex-shrink-0 cursor-pointer group snap-start"
-                onClick={() => setInitialGroupIndex(idx)}
+                onClick={() => setViewerIndex(idx)}
               >
                 <div className="relative w-[72px] h-[72px] sm:w-20 sm:h-20 transition-transform duration-300 ease-out group-hover:scale-105 group-active:scale-95">
                   
-                  {/* RING LOGIC: Gold vs Grey based on DB state */}
+                  {/* RING LOGIC */}
                   <div className={cn(
                     "absolute inset-0 rounded-full transition-all duration-500",
                     hasUnviewed 
@@ -205,12 +184,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
                     {isVideo ? (
                       <video src={latestStory.image_url} className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} muted />
                     ) : (
-                      <img
-                        src={latestStory.image_url}
-                        alt="story"
-                        className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")}
-                        loading="lazy"
-                      />
+                      <img src={latestStory.image_url} alt="story" className={cn("w-full h-full object-cover", !hasUnviewed && "opacity-60")} loading="lazy" />
                     )}
                   </div>
 
@@ -225,7 +199,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
                   "text-[11px] sm:text-xs mt-1.5 font-medium truncate w-[74px] text-center transition-colors",
                   hasUnviewed ? "text-foreground font-semibold" : "text-muted-foreground"
                 )}>
-                  {group.profile?.username || "User"}
+                  {group.username}
                 </span>
               </div>
             );
@@ -236,7 +210,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
       {sheetOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSheetOpen(false)} />
-          <div className="relative w-full max-w-sm bg-background/80 backdrop-blur-3xl border-t sm:border border-white/10 sm:rounded-[32px] shadow-2xl transition-all duration-300 ease-out animate-in slide-in-from-bottom-full sm:zoom-in-95">
+          <div className="relative w-full max-w-sm bg-background/80 backdrop-blur-3xl border-t sm:border border-white/10 sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95">
             <div className="p-6 pb-8">
               <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mb-6 opacity-50" />
               <div className="text-center mb-6">
@@ -264,13 +238,13 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
         document.body
       )}
 
-      {/* Viewer Portal - NOW PASSING GROUPED STORIES */}
-      {initialGroupIndex !== null && createPortal(
+      {viewerIndex !== null && createPortal(
         <div className="fixed inset-0 z-[9999] bg-black">
           <StoryViewer 
             storyGroups={sortedGroups} 
-            initialGroupIndex={initialGroupIndex} 
-            onClose={handleViewerClose} 
+            initialGroupIndex={viewerIndex} 
+            onClose={() => setViewerIndex(null)}
+            onMarkViewed={markStoryAsViewed}
           />
         </div>,
         document.body
