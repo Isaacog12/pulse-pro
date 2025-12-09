@@ -76,6 +76,10 @@ export default {
           from: { transform: "translateY(100%)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
         },
+        "slide-in-from-bottom-full": {
+          from: { transform: "translateY(100%)" },
+          to: { transform: "translateY(0)" },
+        },
         "fade-in": {
           from: { opacity: "0" },
           to: { opacity: "1" },
@@ -89,14 +93,37 @@ export default {
           "50%": { transform: "scale(1.3)" },
           "100%": { transform: "scale(1)" },
         },
+        // NEW ANIMATIONS
+        "wave-stretch": {
+          "0%, 100%": { transform: "scaleY(0.4)", opacity: "0.5" },
+          "50%": { transform: "scaleY(1)", opacity: "1" },
+        },
+        "pulse-ring": {
+          "0%": { transform: "scale(0.8)", opacity: "0.5", boxShadow: "0 0 0 0 rgba(var(--primary), 0.7)" },
+          "70%": { transform: "scale(1)", opacity: "1", boxShadow: "0 0 0 10px rgba(var(--primary), 0)" },
+          "100%": { transform: "scale(0.8)", opacity: "0.5", boxShadow: "0 0 0 0 rgba(var(--primary), 0)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-up": "slide-up 0.3s ease-out",
+        "slide-in-from-bottom-full": "slide-in-from-bottom-full 0.3s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "heart-pop": "heart-pop 0.4s ease-out",
+        "wave-stretch": "wave-stretch 1s ease-in-out infinite",
+        "pulse-ring": "pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        shimmer: "shimmer 2s linear infinite",
+        float: "float 6s ease-in-out infinite",
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

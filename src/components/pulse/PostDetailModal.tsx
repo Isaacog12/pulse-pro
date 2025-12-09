@@ -1,174 +1,143 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Heart, MessageSquare, Bookmark, Send, CheckCircle, Loader2, Volume2, VolumeX, Play } from "lucide-react";
+import { X, Heart, MessageSquare, Send, Bookmark, MoreVertical, Trash2, Share2, Loader2, CheckCircle, Volume2, VolumeX, Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { GlintLogo } from "./GlintLogo"; // Use your new logo
 
 interface PostDetailModalProps {
   postId: string;
   onClose: () => void;
-  onViewProfile: (userId: string) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
-interface PostData {
-  id: string;
-  user_id: string;
-  image_url: string;
-  caption: string | null;
-  created_at: string;
-  profile: {
-    username: string;
-    avatar_url: string | null;
-    is_verified: boolean;
-  };
-}
-
-interface Comment {
-  id: string;
-  text: string;
-  created_at: string;
-  user_id: string;
-  profile: {
-    username: string;
-    avatar_url: string | null;
-  };
-}
-
-// Helper to check if URL is video
+// Helper
 const isVideoUrl = (url: string) => {
   return url.startsWith("data:video/") || /\.(mp4|webm|ogg|mov)$/i.test(url);
 };
 
 export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailModalProps) => {
   const { user } = useAuth();
-  const [post, setPost] = useState<PostData | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [post, setPost] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const [newComment, setNewComment] = useState("");
+  const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Media State
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  const isVideo = post ? isVideoUrl(post.image_url) : false;
+  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchPostData();
+    fetchPostDetails();
+
+    const channel = supabase
+      .channel(`post-detail-${postId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` }, () => {
+        fetchComments();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
-  const fetchPostData = async () => {
-    setLoading(true);
-
-    // Fetch post
-    const { data: postData } = await supabase
+  const fetchPostDetails = async () => {
+    if (!user) return;
+    
+    // Fetch Post + Profile
+    const { data: postData, error } = await supabase
       .from("posts")
-      .select("*, profile:profiles(username, avatar_url, is_verified)")
+      .select("*, profile:profiles(id, username, avatar_url, is_verified)")
       .eq("id", postId)
       .single();
 
-    if (postData) {
-      setPost(postData as PostData);
+    if (error || !postData) {
+      toast.error("Post not found");
+      onClose();
+      return;
     }
 
-    // Fetch comments
-    const { data: commentsData } = await supabase
+    // Fetch Likes Count
+    const { count } = await supabase.from("likes").select("*", { count: 'exact', head: true }).eq("post_id", postId);
+    setLikeCount(count || 0);
+
+    // Check Like Status
+    const { data: likeData } = await supabase.from("likes").select("id").eq("post_id", postId).eq("user_id", user.id).maybeSingle();
+    setLiked(!!likeData);
+
+    // Check Save Status
+    const { data: saveData } = await supabase.from("saved_posts").select("id").eq("post_id", postId).eq("user_id", user.id).maybeSingle();
+    setSaved(!!saveData);
+
+    setPost(postData);
+    await fetchComments();
+    setLoading(false);
+  };
+
+  const fetchComments = async () => {
+    const { data } = await supabase
       .from("comments")
       .select("*, profile:profiles(username, avatar_url)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
-
-    if (commentsData) {
-      setComments(commentsData as Comment[]);
-    }
-
-    // Check if liked
-    if (user) {
-      const { data: likeData } = await supabase
-        .from("likes")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      setLiked(!!likeData);
-
-      const { data: savedData } = await supabase
-        .from("saved_posts")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      setSaved(!!savedData);
-    }
-
-    // Get like count
-    const { count } = await supabase
-      .from("likes")
-      .select("*", { count: "exact", head: true })
-      .eq("post_id", postId);
-
-    setLikeCount(count || 0);
-    setLoading(false);
+    
+    if (data) setComments(data);
   };
 
   const handleLike = async () => {
-    if (!user) return;
-
     const isNowLiked = !liked;
     setLiked(isNowLiked);
-    setLikeCount((prev) => (isNowLiked ? prev + 1 : prev - 1));
-
+    setLikeCount(prev => isNowLiked ? prev + 1 : prev - 1);
+    
     if (isNowLiked) {
-      await supabase.from("likes").insert({ post_id: postId, user_id: user.id });
+      await supabase.from("likes").insert({ post_id: postId, user_id: user?.id });
     } else {
-      await supabase.from("likes").delete().eq("post_id", postId).eq("user_id", user.id);
+      await supabase.from("likes").delete().eq("post_id", postId).eq("user_id", user?.id);
     }
   };
 
   const handleSave = async () => {
-    if (!user) return;
-
     const isNowSaved = !saved;
     setSaved(isNowSaved);
-
     if (isNowSaved) {
-      await supabase.from("saved_posts").insert({ post_id: postId, user_id: user.id });
+      await supabase.from("saved_posts").insert({ post_id: postId, user_id: user?.id });
     } else {
-      await supabase.from("saved_posts").delete().eq("post_id", postId).eq("user_id", user.id);
+      await supabase.from("saved_posts").delete().eq("post_id", postId).eq("user_id", user?.id);
     }
   };
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
+  const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newComment.trim()) return;
-
+    if (!newComment.trim() || !user) return;
     setSubmitting(true);
-    const { data, error } = await supabase
-      .from("comments")
-      .insert({ post_id: postId, user_id: user.id, text: newComment.trim() })
-      .select("*, profile:profiles(username, avatar_url)")
-      .single();
 
-    if (!error && data) {
-      setComments((prev) => [...prev, data as Comment]);
+    const { error } = await supabase.from("comments").insert({
+      user_id: user.id,
+      post_id: postId,
+      text: newComment.trim()
+    });
+
+    if (!error) {
       setNewComment("");
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } else {
+      toast.error("Failed to post comment");
     }
     setSubmitting(false);
   };
 
   const togglePlayPause = () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
+      if (isPlaying) videoRef.current.pause();
+      else videoRef.current.play();
       setIsPlaying(!isPlaying);
     }
   };
@@ -178,178 +147,191 @@ export const PostDetailModal = ({ postId, onClose, onViewProfile }: PostDetailMo
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative glass-strong rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/50 hover:bg-background/80 transition-colors"
-        >
-          <X size={20} className="text-foreground" />
-        </button>
+  const isVideo = post ? isVideoUrl(post.image_url) : false;
 
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
+      
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+      
+      {/* Close Button */}
+      <button 
+        onClick={onClose} 
+        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
+      >
+        <X size={24} />
+      </button>
+
+      {/* Main Card */}
+      <div className="relative w-full max-w-5xl h-[85vh] bg-background/80 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300">
+        
         {loading ? (
-          <div className="flex-1 flex justify-center items-center py-20">
-            <Loader2 className="animate-spin text-primary" size={32} />
+          <div className="flex-1 flex justify-center items-center">
+            <Loader2 className="animate-spin text-primary" size={40} />
           </div>
         ) : post ? (
           <>
-            {/* Media */}
-            <div className="md:w-1/2 bg-black flex items-center justify-center relative">
+            {/* LEFT: Media Section */}
+            <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden group">
               {isVideo ? (
                 <>
-                  <video
+                  <video 
                     ref={videoRef}
-                    src={post.image_url}
-                    className="w-full h-full max-h-[50vh] md:max-h-[90vh] object-contain cursor-pointer"
+                    src={post.image_url} 
+                    className="max-w-full max-h-full cursor-pointer"
                     muted={isMuted}
-                    playsInline
                     loop
+                    playsInline
                     onClick={togglePlayPause}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                   />
-                  {/* Video controls */}
-                  <div className="absolute bottom-4 right-4 flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMuted(!isMuted);
-                      }}
-                      className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="text-white" size={18} />
-                      ) : (
-                        <Volume2 className="text-white" size={18} />
-                      )}
-                    </button>
-                  </div>
+                  {/* Video Controls */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                    className="absolute bottom-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                  >
+                    {isMuted ? <VolumeX className="text-white" size={20} /> : <Volume2 className="text-white" size={20} />}
+                  </button>
                   {!isPlaying && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="p-4 rounded-full bg-black/50">
-                        <Play className="text-white" size={32} />
+                      <div className="p-4 rounded-full bg-black/50 backdrop-blur-sm">
+                        <Play className="text-white ml-1" size={32} fill="white" />
                       </div>
                     </div>
                   )}
                 </>
               ) : (
-                <img
-                  src={post.image_url}
-                  alt=""
-                  className="w-full h-full max-h-[50vh] md:max-h-[90vh] object-contain"
-                />
+                <img src={post.image_url} alt="Post" className="max-w-full max-h-full object-contain" />
               )}
+              
+              {/* Subtle Glint Logo Watermark */}
+              <div className="absolute bottom-4 left-4 opacity-50 pointer-events-none grayscale hidden md:block">
+                 <GlintLogo size="sm" />
+              </div>
             </div>
 
-            {/* Details */}
-            <div className="md:w-1/2 flex flex-col max-h-[40vh] md:max-h-[90vh]">
+            {/* RIGHT: Details & Comments */}
+            <div className="w-full md:w-[400px] flex flex-col bg-background/40 border-l border-white/5 h-full">
+              
               {/* Header */}
-              <div 
-                className="p-4 border-b border-border flex items-center gap-3 cursor-pointer"
-                onClick={() => {
-                  onViewProfile(post.user_id);
-                  onClose();
-                }}
-              >
-                <img
-                  src={post.profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user_id}`}
-                  alt=""
-                  className="w-10 h-10 rounded-full object-cover bg-secondary"
-                />
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-foreground hover:underline">{post.profile.username}</span>
-                  {post.profile.is_verified && (
-                    <CheckCircle size={14} className="text-yellow-400 fill-current" />
-                  )}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-80" 
+                  onClick={() => { onClose(); onViewProfile?.(post.user_id); }}
+                >
+                  <div className="relative">
+                    <div className="absolute -inset-[1px] rounded-full bg-gradient-to-tr from-primary to-accent opacity-70" />
+                    <Avatar className="w-9 h-9 border-2 border-background relative">
+                      <AvatarImage src={post.profile?.avatar_url || ""} />
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-sm">{post.profile?.username}</span>
+                    {post.profile?.is_verified && <CheckCircle size={14} className="text-yellow-400 fill-current" />}
+                  </div>
                 </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                  <MoreVertical size={16} />
+                </Button>
               </div>
 
-              {/* Comments */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Comments List */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
                 {/* Caption */}
                 {post.caption && (
-                  <div className="flex gap-3">
-                    <img
-                      src={post.profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user_id}`}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover bg-secondary flex-shrink-0"
-                    />
-                    <div>
-                      <span className="font-bold text-foreground mr-2">{post.profile.username}</span>
-                      <span className="text-foreground">{post.caption}</span>
-                      <p className="text-xs text-muted-foreground mt-1">{formatTime(post.created_at)}</p>
+                  <div className="flex gap-3 mb-6">
+                    <Avatar className="w-8 h-8 flex-shrink-0 border border-white/10">
+                      <AvatarImage src={post.profile?.avatar_url || ""} />
+                    </Avatar>
+                    <div className="text-sm">
+                      <span className="font-bold mr-2 text-foreground">{post.profile?.username}</span>
+                      <span className="text-foreground/80">{post.caption}</span>
+                      <div className="text-xs text-muted-foreground mt-1">{formatTime(post.created_at)}</div>
                     </div>
                   </div>
                 )}
 
-                {/* Comments list */}
                 {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <img
-                      src={comment.profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user_id}`}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover bg-secondary flex-shrink-0 cursor-pointer"
-                      onClick={() => {
-                        onViewProfile(comment.user_id);
-                        onClose();
-                      }}
-                    />
-                    <div>
-                      <span 
-                        className="font-bold text-foreground mr-2 cursor-pointer hover:underline"
-                        onClick={() => {
-                          onViewProfile(comment.user_id);
-                          onClose();
-                        }}
-                      >
-                        {comment.profile.username}
-                      </span>
-                      <span className="text-foreground">{comment.text}</span>
-                      <p className="text-xs text-muted-foreground mt-1">{formatTime(comment.created_at)}</p>
+                  <div key={comment.id} className="flex gap-3 group">
+                    <Avatar className="w-8 h-8 flex-shrink-0 border border-white/10">
+                      <AvatarImage src={comment.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user_id}`} />
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="text-sm">
+                        <span className="font-bold mr-2 text-foreground/90 cursor-pointer hover:text-primary transition-colors" onClick={() => { onClose(); onViewProfile?.(comment.user_id); }}>
+                          {comment.profile?.username}
+                        </span>
+                        <span className="text-foreground/80">{comment.text}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Reply</span>
+                        {user?.id === comment.user_id && (
+                           <button className="text-[10px] text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 hover:underline">
+                             <Trash2 size={10} /> Delete
+                           </button>
+                        )}
+                      </div>
                     </div>
+                    <button className="text-muted-foreground hover:text-red-500 transition-colors self-start pt-1">
+                      <Heart size={12} />
+                    </button>
                   </div>
                 ))}
+                <div ref={commentsEndRef} />
               </div>
 
-              {/* Actions */}
-              <div className="p-4 border-t border-border">
-                <div className="flex items-center justify-between mb-3">
+              {/* Actions & Input */}
+              <div className="border-t border-white/10 bg-background/60 backdrop-blur-md p-4 space-y-3">
+                
+                {/* Action Bar */}
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <button onClick={handleLike} className="transition-transform active:scale-125">
-                      <Heart size={24} className={cn(liked ? "text-accent fill-current" : "text-foreground")} />
+                    <button onClick={handleLike} className="hover:scale-110 transition-transform active:scale-95">
+                      <Heart size={26} className={cn("transition-colors", liked ? "fill-red-500 text-red-500" : "text-foreground hover:text-muted-foreground")} />
                     </button>
-                    <MessageSquare size={24} className="text-foreground" />
-                    <Send size={24} className="text-foreground" />
+                    <button className="hover:scale-110 transition-transform active:scale-95 text-foreground hover:text-primary">
+                      <MessageSquare size={26} />
+                    </button>
+                    <button className="hover:scale-110 transition-transform active:scale-95 text-foreground hover:text-green-400">
+                      <Send size={26} />
+                    </button>
                   </div>
-                  <button onClick={handleSave} className="transition-transform active:scale-125">
-                    <Bookmark size={24} className={cn(saved ? "text-yellow-400 fill-current" : "text-foreground")} />
+                  <button onClick={handleSave} className="hover:scale-110 transition-transform active:scale-95">
+                    <Bookmark size={26} className={cn("transition-colors", saved ? "fill-yellow-500 text-yellow-500" : "text-foreground hover:text-muted-foreground")} />
                   </button>
                 </div>
-                <p className="font-bold text-foreground text-sm mb-2">{likeCount} likes</p>
-                <p className="text-xs text-muted-foreground">{formatTime(post.created_at)}</p>
+
+                <div className="font-bold text-sm text-foreground">
+                  {likeCount} likes
+                </div>
+
+                {/* Input Field */}
+                <form onSubmit={handleComment} className="relative flex items-center gap-2 pt-1">
+                  <input 
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Add a comment..."
+                    className="flex-1 bg-secondary/50 border-none text-sm placeholder:text-muted-foreground h-10 px-4 rounded-full focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+                  />
+                  {newComment.trim() && (
+                    <button 
+                      type="submit" 
+                      disabled={submitting}
+                      className="text-primary font-bold text-sm px-2 hover:scale-105 transition-transform disabled:opacity-50"
+                    >
+                      Post
+                    </button>
+                  )}
+                </form>
               </div>
 
-              {/* Add comment */}
-              <form onSubmit={handleSubmitComment} className="p-4 border-t border-border flex gap-2">
-                <Input
-                  placeholder="Add a comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="flex-1"
-                />
-                <Button type="submit" size="sm" disabled={!newComment.trim() || submitting}>
-                  {submitting ? <Loader2 className="animate-spin" size={16} /> : "Post"}
-                </Button>
-              </form>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex justify-center items-center py-20 text-muted-foreground">
-            Post not found
-          </div>
+          <div className="flex-1 flex justify-center items-center text-muted-foreground">Post not found</div>
         )}
       </div>
     </div>

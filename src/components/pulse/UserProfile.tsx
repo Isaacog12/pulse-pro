@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { EditProfileModal } from "./EditProfileModal";
 import { FollowButton } from "./FollowButton";
+import { toast } from "sonner"; // Assuming you use toast
 
 interface UserProfileProps {
   onOpenSettings: () => void;
@@ -52,12 +53,27 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
     setFollowingCount(following || 0);
   };
 
+  const handleShareProfile = () => {
+    // Generate the deep link
+    const link = `${window.location.origin}?profile=${user?.id}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `Check out ${profile?.username} on Glint`,
+        url: link,
+      });
+    } else {
+      navigator.clipboard.writeText(link);
+      toast.success("Profile link copied!");
+    }
+  };
+
   const displayPosts = activeTab === "posts" ? posts : savedPosts;
 
   if (!user || !profile) return null;
 
   return (
-    <div className="max-w-5xl mx-auto pb-24 px-4 sm:px-6 relative">
+    <div className="max-w-5xl mx-auto pb-24 px-4 sm:px-6 relative animate-in fade-in duration-500">
       
       {/* Background Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-primary/20 blur-[120px] rounded-full pointer-events-none -z-10" />
@@ -77,10 +93,10 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
             
             {/* Top Actions */}
             <div className="absolute top-4 right-4 flex gap-2 z-20">
-              <Button size="icon" variant="ghost" className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md border border-white/10" onClick={onOpenSettings}>
+              <Button size="icon" variant="ghost" className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md border border-white/10 transition-colors" onClick={onOpenSettings}>
                 <Settings size={18} />
               </Button>
-              <Button size="icon" variant="ghost" className="rounded-full bg-black/20 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md border border-white/10" onClick={signOut}>
+              <Button size="icon" variant="ghost" className="rounded-full bg-black/20 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md border border-white/10 transition-colors" onClick={signOut}>
                 <LogOut size={18} />
               </Button>
             </div>
@@ -127,6 +143,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
                     
                     {/* Metadata */}
                     <div className="flex items-center justify-center md:justify-start gap-4 mt-3 text-xs text-muted-foreground/60">
+                      <span className="flex items-center gap-1"><MapPin size={12} /> Global</span>
                       <span className="flex items-center gap-1"><Calendar size={12} /> Joined 2025</span>
                     </div>
                   </div>
@@ -139,7 +156,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
                     >
                       <Edit3 size={16} className="mr-2" /> Edit Profile
                     </Button>
-                    <Button size="icon" variant="ghost" className="rounded-xl border border-white/5">
+                    <Button size="icon" variant="ghost" className="rounded-xl border border-white/5" onClick={handleShareProfile}>
                       <Share2 size={18} />
                     </Button>
                   </div>
@@ -240,7 +257,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
 };
 
 // ==========================================
-// NEW: Follows List Modal
+// Follows List Modal
 // ==========================================
 interface FollowsListModalProps {
   type: "followers" | "following";
@@ -258,7 +275,6 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
     const fetchData = async () => {
       setLoading(true);
       
-      // 1. Fetch the main list
       let userList: any[] = [];
       if (type === "followers") {
         const { data } = await supabase
@@ -275,7 +291,6 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
       }
       setUsers(userList);
 
-      // 2. Fetch Suggestions (Simulated for this context: people not in the list)
       if (currentUser) {
         const existingIds = userList.map(u => u.id);
         const { data: suggested } = await supabase

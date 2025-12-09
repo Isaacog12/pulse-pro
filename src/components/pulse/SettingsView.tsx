@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   Bell,
@@ -21,14 +21,13 @@ import {
   Video,
   Smartphone,
   Ban,
-  Keyboard,
-  Sparkles,
-  Star
+  Keyboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface SettingsViewProps {
@@ -36,39 +35,102 @@ interface SettingsViewProps {
 }
 
 export const SettingsView = ({ onBack }: SettingsViewProps) => {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const isPro = profile?.is_pro || false;
   const [activePage, setActivePage] = useState<"main" | "pro">("main");
 
-  // Global Settings State
+  // Local state for UI
   const [settings, setSettings] = useState({
     notifications: true,
     emailNotifications: true,
     privateAccount: false,
     darkMode: true,
-    // Pro Features Toggles
     ghostMode: false,
     showActivity: true,
     hdUploads: true,
     stealthTyping: false,
   });
 
-  const updateSetting = (key: keyof typeof settings, value: boolean) => {
+  // --- 1. LOAD SETTINGS FROM DB & LOCAL STORAGE ---
+  useEffect(() => {
+    // Load Dark Mode (Rebranded key: glint_theme)
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("glint_theme");
+      const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      setSettings(prev => ({ ...prev, darkMode: isDark }));
+    }
+
+    // Load Private Account Status
+    if (profile) {
+      const fetchProfileSettings = async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("is_private")
+          .eq("id", user?.id)
+          .single();
+        
+        if (data) {
+          // @ts-ignore - Supabase types might not be updated yet
+          setSettings(prev => ({ ...prev, privateAccount: data.is_private || false }));
+        }
+      };
+      fetchProfileSettings();
+    }
+  }, [profile, user]);
+
+  // --- 2. APPLY DARK MODE ---
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (settings.darkMode) {
+      root.classList.add("dark");
+      localStorage.setItem("glint_theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("glint_theme", "light");
+    }
+  }, [settings.darkMode]);
+
+  // --- 3. HANDLE UPDATES ---
+  const updateSetting = async (key: keyof typeof settings, value: boolean) => {
+    // Gate Pro Features
     const proKeys = ["ghostMode", "hdUploads", "stealthTyping"];
     if (!isPro && proKeys.includes(key)) {
-      toast.error("Unlock Pulse Pro to use this feature", {
-        icon: <Crown className="text-amber-500" size={16} />
+      toast.error("Unlock Glint Pro to use this feature", {
+        icon: <Crown className="text-amber-500" size={15} />
       });
       return;
     }
+
+    // Update Local State
     setSettings((prev) => ({ ...prev, [key]: value }));
+
+    // ✅ Handle Database Updates for "Private Account"
+    if (key === "privateAccount") {
+      if (!user) return;
+      
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_private: value } as any) // Type cast for safety
+        .eq("id", user.id);
+
+      if (error) {
+        console.error("Error updating privacy:", error);
+        toast.error("Failed to update privacy settings");
+        setSettings((prev) => ({ ...prev, [key]: !value }));
+      } else {
+        toast.success(value ? "Account is now Private" : "Account is now Public");
+      }
+      return;
+    }
+
+    // Success Toast for other local settings
     if (isPro || !proKeys.includes(key)) {
-      toast.success("Setting updated");
+        if (key !== "darkMode") toast.success("Setting updated");
     }
   };
 
   // ==========================================
-  // VIEW 1: THE PULSE PRO PAGE
+  // VIEW 1: PRO PAGE
   // ==========================================
   if (activePage === "pro") {
     return (
@@ -80,11 +142,11 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
             onClick={() => setActivePage("main")}
             className="p-3 rounded-full bg-secondary/50 backdrop-blur-md hover:bg-secondary transition-all hover:scale-105 active:scale-95 shadow-sm border border-white/10"
           >
-            <ArrowLeft size={20} className="text-foreground" />
+            <ArrowLeft size={15} className="text-foreground" />
           </button>
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-              Pulse Pro
+              Glint Pro
             </h2>
             {isPro && <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-bold border border-amber-500/20">MEMBER</span>}
           </div>
@@ -117,7 +179,6 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
             </div>
             
             <div className="divide-y divide-white/5">
-              {/* 1. Ghost Mode */}
               <SettingItem
                 icon={EyeOff}
                 title="Ghost Mode"
@@ -127,8 +188,6 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
                 highlight
                 locked={!isPro}
               />
-
-              {/* 2. HD Uploads */}
               <SettingItem
                 icon={Video}
                 title="4K HD Uploads"
@@ -138,8 +197,6 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
                 highlight
                 locked={!isPro}
               />
-
-              {/* 3. Stealth Typing */}
               <SettingItem
                 icon={Keyboard}
                 title="Stealth Typing"
@@ -149,58 +206,36 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
                 highlight
                 locked={!isPro}
               />
-
-              {/* 4. Verified Badge - UPDATED TO GOLD */}
+              
+              {/* Static Features */}
               <div className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                  <CheckCircle size={20} />
-                </div>
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500"><CheckCircle size={20} /></div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">Verified Badge</p>
-                  <p className="text-xs text-muted-foreground">Show the gold badge on your profile</p>
+                  <p className="text-xs text-muted-foreground">Gold badge on your profile</p>
                 </div>
-                {/* Changed from Blue to Gold */}
                 {isPro && <CheckCircle size={20} className="text-yellow-400 fill-yellow-400/20" />}
               </div>
-
-              {/* 5. Analytics */}
+              
               <div className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                  <BarChart3 size={20} />
-                </div>
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500"><BarChart3 size={20} /></div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">Advanced Analytics</p>
                   <p className="text-xs text-muted-foreground">See who viewed your profile</p>
                 </div>
                 {isPro && <ChevronRight size={18} className="text-muted-foreground" />}
               </div>
-
-              {/* 6. Custom Themes */}
-              <div className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                  <Palette size={20} />
-                </div>
+              
+               <div className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500"><Palette size={20} /></div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">Custom App Themes</p>
-                  <p className="text-xs text-muted-foreground">Change the look of Pulse</p>
+                  <p className="text-xs text-muted-foreground">Change the look of Glint</p>
                 </div>
-              </div>
-
-              {/* 7. Ad Free */}
-              <div className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                  <Ban size={20} />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-foreground">Ad-Free Experience</p>
-                  <p className="text-xs text-muted-foreground">No interruptions</p>
-                </div>
-                {isPro && <span className="text-xs font-bold text-green-500">ACTIVE</span>}
               </div>
             </div>
           </div>
 
-          {/* Footer Button */}
           {!isPro && (
             <div className="sticky bottom-24 p-4 glass rounded-2xl border border-amber-500/20 shadow-2xl">
               <Button className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]">
@@ -228,7 +263,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
           onClick={onBack}
           className="p-3 rounded-full bg-secondary/50 backdrop-blur-md hover:bg-secondary transition-all hover:scale-105 active:scale-95 shadow-sm border border-white/10"
         >
-          <ArrowLeft size={20} className="text-foreground" />
+          <ArrowLeft size={15} className="text-foreground" />
         </button>
         <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
           Settings
@@ -237,12 +272,11 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
 
       <div className="space-y-6">
         
-        {/* Pulse Pro Banner */}
+        {/* Glint Pro Banner */}
         <button 
           onClick={() => setActivePage("pro")}
           className="w-full relative overflow-hidden rounded-[28px] p-[1px] group transition-all duration-300 hover:scale-[1.01]"
         >
-          {/* Gradient Border */}
           <div className={cn(
             "absolute inset-0 bg-gradient-to-r",
             isPro ? "from-amber-400 via-orange-500 to-amber-600" : "from-secondary to-secondary/50"
@@ -260,7 +294,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
               </div>
               <div className="text-left">
                 <h3 className={cn("text-lg font-bold", isPro ? "text-foreground" : "text-muted-foreground")}>
-                  Pulse Pro
+                  Glint Pro
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {isPro ? "Manage your membership" : "Upgrade to unlock features"}
@@ -328,7 +362,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
               <SettingItem
                 icon={settings.darkMode ? Moon : Sun}
                 title="Dark Mode"
-                description="Easier on the eyes"
+                description="Switch theme"
                 value={settings.darkMode}
                 onChange={(v) => updateSetting("darkMode", v)}
               />
@@ -361,10 +395,10 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
             onClick={() => signOut()}
             className="w-full p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 font-medium flex items-center justify-center transition-colors border border-red-500/20"
           >
-            <LogOut size={18} className="mr-2" /> Log Out
+            <LogOut size={15} className="mr-2" /> Log Out
           </button>
           <p className="text-center text-[10px] text-muted-foreground mt-6 pb-8 opacity-50">
-            Pulse v2.2.0 •
+            Glint v2.2.0 •
           </p>
         </div>
 
@@ -404,12 +438,12 @@ const SettingItem = ({
           "p-2.5 rounded-xl transition-colors",
           highlight ? "bg-amber-500/10 text-amber-500" : "bg-secondary/50 text-foreground group-hover:bg-primary/10 group-hover:text-primary"
         )}>
-          <Icon size={20} />
+          <Icon size={15} />
         </div>
         <div>
           <p className={cn("font-semibold flex items-center gap-2", highlight ? "text-amber-500" : "text-foreground")}>
             {title}
-            {locked && <Lock size={12} className="text-muted-foreground" />}
+            {locked && <Lock size={15} className="text-muted-foreground" />}
           </p>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
@@ -423,7 +457,7 @@ const SettingItem = ({
           className={cn(highlight && "data-[state=checked]:bg-amber-500")}
         />
       ) : (
-        <ChevronRight size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+        <ChevronRight size={15} className="text-muted-foreground group-hover:text-foreground transition-colors" />
       )}
     </div>
   );

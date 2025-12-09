@@ -88,7 +88,7 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5 z-20">
           <h3 className="text-lg font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            {profile?.username || "Profile"}
+            {profile?.username || "Glint User"}
           </h3>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 transition-colors">
             <X size={20} />
@@ -118,7 +118,7 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
                 <div className="relative mb-4 group">
                   <div className={cn(
                     "absolute -inset-1 rounded-full blur opacity-75 transition-all duration-1000",
-                    profile.is_verified ? "bg-gradient-to-tr from-yellow-400 to-orange-500" : "bg-gradient-to-tr from-blue-500 to-purple-500",
+                    profile.is_verified ? "bg-gradient-to-tr from-yellow-400 to-orange-500" : "bg-gradient-to-tr from-primary to-accent",
                     "group-hover:opacity-100 group-hover:blur-md"
                   )} />
                   <div className="relative w-28 h-28 rounded-full p-[3px] bg-background">
@@ -138,7 +138,7 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
                   </div>
 
                   {profile.is_pro && (
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg ring-2 ring-background">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg ring-2 ring-background">
                       PRO MEMBER
                     </div>
                   )}
@@ -148,7 +148,7 @@ export const ProfileViewModal = ({ userId, onClose, onViewPost }: ProfileViewMod
                 <div className="space-y-1 mb-4 mt-2">
                   <div className="flex items-center justify-center gap-1.5">
                     <h2 className="text-2xl font-bold text-foreground tracking-tight">{profile.username}</h2>
-                    {profile.is_verified && <CheckCircle size={20} className="text-yellow-400 fill-blue-500/10" />}
+                    {profile.is_verified && <CheckCircle size={20} className="text-yellow-400 fill-yellow-400/20" />}
                   </div>
                   {profile.bio && (
                     <p className="text-sm text-muted-foreground max-w-[280px] leading-relaxed mx-auto">

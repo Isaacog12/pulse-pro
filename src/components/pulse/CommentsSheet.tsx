@@ -155,12 +155,12 @@ export const CommentsSheet = ({ postId, onClose }: CommentsSheetProps) => {
                 key={c.id}
                 className={cn(
                   "flex space-x-3 p-3 rounded-2xl transition-all duration-300 group hover:bg-white/5",
-                  c.profile?.is_pro && "bg-gradient-to-r from-yellow-500/10 to-transparent border-l-2 border-yellow-500/50"
+                  c.profile?.is_pro && "bg-gradient-to-r from-amber-500/10 to-transparent border-l-2 border-amber-500/50"
                 )}
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className={cn("p-[1px] rounded-full", c.profile?.is_pro ? "bg-gradient-to-tr from-yellow-500 to-amber-600" : "bg-transparent")}>
+                  <div className={cn("p-[1px] rounded-full", c.profile?.is_pro ? "bg-gradient-to-tr from-amber-500 to-orange-600" : "bg-transparent")}>
                     <img
                       src={c.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.user_id}`}
                       className="w-9 h-9 rounded-full object-cover border-2 border-background"
@@ -168,7 +168,7 @@ export const CommentsSheet = ({ postId, onClose }: CommentsSheetProps) => {
                     />
                   </div>
                   {c.profile?.is_pro && (
-                    <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-[8px] px-1.5 py-px rounded-full font-bold shadow-sm ring-2 ring-background">
+                    <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[8px] px-1.5 py-px rounded-full font-bold shadow-sm ring-2 ring-background">
                       PRO
                     </div>
                   )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Loader2, Sparkles, X, Heart, MapPin, TrendingUp, Grid3X3 } from "lucide-react";
+import { Search, UserPlus, Loader2, Sparkles, X, Heart, MapPin, TrendingUp, Grid3X3, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 interface Post {
   id: string;
   image_url: string;
-  // We removed likes_count/comments_count to prevent database errors
+  likes_count?: number;
+  comments_count?: number;
 }
 
 interface UserProfile {
@@ -63,25 +64,20 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
     }
   }, [user]);
 
-  // ✅ FIXED: Safe Fetch Function (No DB Changes Required)
   const fetchGlobalPosts = async () => {
     if (!user) return;
     setLoadingPosts(true);
 
-    // 1. Fetch ONLY the columns we know exist (id, image_url)
-    // We do NOT ask for likes_count here to avoid errors.
     const { data, error } = await supabase
       .from("posts")
       .select("id, image_url, user_id") 
-      .neq("user_id", user.id) // Don't show my own posts
+      .neq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(60);
 
     if (error) {
       console.error("Explore Fetch Error:", error);
     } else if (data) {
-      // 2. Client-Side Shuffle
-      // This creates the "Random Explore" effect without complex DB plugins
       const shuffled = [...data].sort(() => 0.5 - Math.random());
       setExplorePosts(shuffled);
     }
@@ -90,7 +86,6 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
 
   const checkIfNewUser = async () => {
     if (!user) return;
-    // We wrap these in try/catch to be safe, but they should work if tables exist
     try {
       const { count: followersCount } = await supabase.from("followers").select("*", { count: "exact", head: true }).eq("following_id", user.id);
       const { count: followingCount } = await supabase.from("followers").select("*", { count: "exact", head: true }).eq("follower_id", user.id);
@@ -139,7 +134,7 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
       <div className="sticky top-0 z-40 px-4 py-4 -mx-4 mb-6 bg-background/60 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
         <div className="max-w-3xl mx-auto">
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-accent/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
             <div className="relative bg-background/40 border border-white/10 rounded-2xl flex items-center shadow-sm group-focus-within:border-primary/30 group-focus-within:shadow-lg transition-all duration-300">
               <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
               <Input
@@ -198,12 +193,52 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
 
       <div className="max-w-3xl mx-auto px-1">
         
+        {/* New User Welcome */}
+        {isNewUser && suggestedUsers.length > 0 && !searchQuery && (
+          <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="relative overflow-hidden rounded-[32px] p-8 mb-8 border border-white/10 bg-gradient-to-br from-primary/10 via-background to-secondary/30 shadow-2xl">
+              <div className="absolute top-0 right-0 p-8 opacity-20 animate-pulse" style={{ animationDuration: '4s' }}>
+                <Sparkles size={140} className="text-primary" />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/5 text-xs font-medium text-white mb-4 backdrop-blur-md">
+                  <Sparkles size={12} className="text-yellow-400" /> New to Glint?
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Welcome Aboard!</h3>
+                <p className="text-white/60 mb-6 max-w-sm text-sm leading-relaxed">
+                  Your feed is looking a little empty. Here are some top creators to help you get started.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 px-2">
+                <UserPlus size={14} /> Suggested for you
+              </h3>
+              <div className="bg-background/30 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-lg">
+                {suggestedUsers.map((profile) => (
+                  <UserRow
+                    key={profile.id}
+                    profile={profile}
+                    onFollowChange={fetchSuggestedUsers}
+                    onViewProfile={onViewProfile}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Discovery Grid */}
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent flex items-center gap-2">
               <TrendingUp size={20} className="text-yellow-400" /> Explore
             </h3>
+            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary/30 px-3 py-1 rounded-full border border-white/5">
+              <MapPin size={12} /> Global
+            </div>
           </div>
           
           {loadingPosts ? (
@@ -240,7 +275,6 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
                     <div className="flex items-center gap-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
                       <div className="flex items-center gap-1.5 text-white/90">
                         <Heart size={18} className="fill-white/20" />
-                        {/* We hide the count since we aren't fetching it to avoid errors */}
                         <span className="text-xs font-bold">View</span>
                       </div>
                     </div>
@@ -272,7 +306,7 @@ const UserRow = ({ profile, onFollowChange, onViewProfile }: { profile: UserProf
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm text-foreground truncate">{profile.username}</p>
-            {profile.is_verified && <span className="text-blue-500 text-[10px] bg-blue-500/10 p-0.5 rounded-full px-1">✓</span>}
+            {profile.is_verified && <CheckCircle size={12} className="text-yellow-400 fill-yellow-400/20 shrink-0" />}
             {profile.is_pro && <span className="text-[9px] bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-1.5 py-0.5 rounded font-bold">PRO</span>}
           </div>
           <p className="text-xs text-muted-foreground truncate max-w-[180px]">

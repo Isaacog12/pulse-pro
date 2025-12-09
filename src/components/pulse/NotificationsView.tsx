@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Heart, MessageCircleDashed, UserPlus, Check, Trash2, Bell, Loader2 } from "lucide-react";
+import { Heart, MessageSquareDashed, UserPlus, Check, Trash2, Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -94,21 +94,20 @@ export const NotificationsView = () => {
     return `${Math.floor(diff / 86400)}d`;
   };
 
-  // --- UPDATED ICON MAPPING ---
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "like": return <Heart size={14} className="text-white fill-white" strokeWidth={0} />;
-      // ✅ Updated to MessageCircleDashed
-      case "comment": return <MessageCircleDashed size={14} className="text-white" strokeWidth={2.5} />;
+      case "comment": return <MessageSquareDashed size={14} className="text-white" strokeWidth={2.5} />; // Updated icon
       case "follow": return <UserPlus size={14} className="text-white fill-white" strokeWidth={0} />;
       default: return <Bell size={14} className="text-white" />;
     }
   };
 
+  // Rebranded Gradient Colors
   const getNotificationColor = (type: string) => {
     switch (type) {
       case "like": return "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/30";
-      case "comment": return "bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/30";
+      case "comment": return "bg-gradient-to-br from-primary to-accent shadow-primary/30"; // Glint Colors
       case "follow": return "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30";
       default: return "bg-gray-500";
     }

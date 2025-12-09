@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Search, MessageSquare, Loader2, CheckCircle2, UserX, Sparkles } from "lucide-react";
+import { X, Search, MessageSquare, Loader2, CheckCircle2, UserX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,24 +62,20 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
     setStartingChat(targetUser.id);
 
     try {
-      // 🛠️ FIX 1: We tell TypeScript to treat this function name as valid
-      // even if it hasn't been generated in your types file yet.
+      // @ts-ignore - Ignoring type check for dynamic RPC call
       const { data: conversationId, error } = await supabase
-        .rpc('create_private_conversation' as any, { 
+        .rpc('create_private_conversation', { 
           _user2: targetUser.id 
         });
 
       if (error) throw error;
 
-      // 🛠️ FIX 2: We ensure conversationId is treated as a string
-      // and only call onStartChat if we actually got an ID back.
       if (conversationId) {
         onStartChat(conversationId as string, targetUser);
         onClose();
       } else {
-        throw new Error("Failed to generate conversation ID");
+        throw new Error("Failed to start conversation");
       }
-
     } catch (error) {
       console.error("Error starting chat:", error);
       toast.error("Failed to start conversation");
@@ -109,7 +105,7 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
             <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
               New Message
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Find people to chat with</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Find people to chat with on Glint</p>
           </div>
           <button
             onClick={onClose}
@@ -122,7 +118,7 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
         {/* Search Input */}
         <div className="px-6 pt-2 pb-4 relative z-10">
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
             <div className="relative flex items-center bg-secondary/30 border border-white/5 rounded-2xl overflow-hidden shadow-inner focus-within:ring-1 focus-within:ring-primary/50 transition-all">
               <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
               <Input
@@ -168,7 +164,7 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="relative">
-                    <div className="absolute -inset-[2px] rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[2px]" />
+                    <div className="absolute -inset-[2px] rounded-full bg-gradient-to-tr from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[2px]" />
                     <div className="relative w-12 h-12 rounded-full p-[2px] bg-background group-hover:bg-transparent transition-colors">
                       <img
                         src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`}
@@ -182,7 +178,7 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
                     <div className="flex items-center gap-1.5">
                       <p className="font-semibold text-foreground truncate">{profile.username}</p>
                       {profile.is_verified && (
-                        <CheckCircle2 size={14} className="text-blue-500 fill-blue-500/10 shrink-0" />
+                        <CheckCircle2 size={14} className="text-yellow-400 fill-yellow-400/20 shrink-0" />
                       )}
                     </div>
                     {profile.bio && (
@@ -201,7 +197,7 @@ export const UserSearchModal = ({ onClose, onStartChat }: UserSearchModalProps) 
                     "rounded-xl px-4 h-9 font-semibold shadow-lg transition-all duration-300 transform active:scale-95",
                     startingChat === profile.id
                       ? "bg-secondary text-muted-foreground"
-                      : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-blue-500/25 border-0"
+                      : "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white shadow-primary/20 border-0"
                   )}
                 >
                   {startingChat === profile.id ? (

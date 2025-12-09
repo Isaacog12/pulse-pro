@@ -3,7 +3,7 @@ import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff, Check, AlertCircl
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PulseLogo } from "./PulseLogo";
+import { GlintLogo } from "./GlintLogo"; // Updated Logo Import
 import { WaveLoader } from "./WaveLoader";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,7 +45,8 @@ export const AuthPage = () => {
   const strength = getPasswordStrength(password);
 
   useEffect(() => {
-    const rememberedEmail = localStorage.getItem("pulse_remembered_email");
+    // Rebranded Storage Key
+    const rememberedEmail = localStorage.getItem("glint_remembered_email");
     if (rememberedEmail) {
       setEmail(rememberedEmail);
       setRememberMe(true);
@@ -77,8 +78,8 @@ export const AuthPage = () => {
         const { error } = await signIn(email, password);
         if (error) throw error;
         
-        if (rememberMe) localStorage.setItem("pulse_remembered_email", email);
-        else localStorage.removeItem("pulse_remembered_email");
+        if (rememberMe) localStorage.setItem("glint_remembered_email", email);
+        else localStorage.removeItem("glint_remembered_email");
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
@@ -105,7 +106,7 @@ export const AuthPage = () => {
         
         {/* Logo */}
         <div className="mb-8 cursor-pointer hover:scale-105 transition-transform duration-500 ease-out">
-          <PulseLogo size="lg" animated />
+          <GlintLogo size="lg" animated />
         </div>
 
         {/* Main Glass Card */}
@@ -120,7 +121,7 @@ export const AuthPage = () => {
               {isSignup ? "Create Account" : isForgot ? "Reset Password" : "Welcome Back"}
             </h1>
             <p className="text-sm text-muted-foreground font-medium">
-              {isSignup ? "Join Pulse to connect with friends" : isForgot ? "Enter email to restore access" : "Sign in to continue"}
+              {isSignup ? "Join Glint to connect with friends" : isForgot ? "Enter email to restore access" : "Sign in to continue"}
             </p>
           </div>
 
@@ -158,7 +159,7 @@ export const AuthPage = () => {
                   focusedField === "username" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
                 )}>
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-yellow-400" : "text-muted-foreground")} />
+                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-blue-400" : "text-muted-foreground")} />
                   </div>
                   <Input
                     placeholder="Username"
@@ -179,7 +180,7 @@ export const AuthPage = () => {
               focusedField === "email" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
             )}>
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-yellow-400" : "text-muted-foreground")} />
+                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-blue-400" : "text-muted-foreground")} />
               </div>
               <Input
                 type="email"
@@ -201,7 +202,7 @@ export const AuthPage = () => {
                   focusedField === "password" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
                 )}>
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-yellow-400" : "text-muted-foreground")} />
+                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-blue-400" : "text-muted-foreground")} />
                   </div>
                   <Input
                     type={showPassword ? "text" : "password"}
@@ -308,9 +309,14 @@ export const AuthPage = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-xs text-muted-foreground/50 mt-8 text-center max-w-xs">
-          By continuing, you agree to Pulse's Terms of Service and Privacy Policy.
-        </p>
+        <div className="mt-8 text-center max-w-xs">
+          <p className="text-xs text-muted-foreground/50">
+            By continuing, you agree to Glint's Terms of Service and Privacy Policy.
+          </p>
+          <div className="text-[10px] text-muted-foreground/30 mt-2 font-mono">
+             All rights reserved © 2025
+          </div>
+        </div>
       </div>
     </div>
   );

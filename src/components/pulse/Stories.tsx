@@ -36,7 +36,8 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const stored = localStorage.getItem("pulse_viewed_stories");
+    // Rebranded key: glint_viewed_stories
+    const stored = localStorage.getItem("glint_viewed_stories");
     if (stored) {
       setViewedStories(new Set(JSON.parse(stored)));
     }
@@ -46,34 +47,27 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
     const newSet = new Set(viewedStories);
     newSet.add(storyId);
     setViewedStories(newSet);
-    localStorage.setItem("pulse_viewed_stories", JSON.stringify(Array.from(newSet)));
+    localStorage.setItem("glint_viewed_stories", JSON.stringify(Array.from(newSet)));
   };
 
-  // 🛠️ FIXED GROUPING LOGIC
-  // This ensures every group has a valid 'stories' array
+  // Grouping Logic
   const groupedMap = stories.reduce((acc, s) => {
     if (!acc[s.user_id]) {
       acc[s.user_id] = {
         user_id: s.user_id,
         username: s.profile?.username || "User",
         avatar_url: s.profile?.avatar_url || null,
-        stories: [], // Initialize empty array
+        stories: [],
         hasUnviewed: false
       };
     }
-    
-    // Add story to the array
     acc[s.user_id].stories.push(s);
-
-    // Check if this specific story is unviewed
     if (!viewedStories.has(s.id)) {
       acc[s.user_id].hasUnviewed = true;
     }
-    
     return acc;
   }, {} as Record<string, StoryGroup>);
 
-  // Convert map to array and sort (Unviewed first)
   const sortedGroups = Object.values(groupedMap).sort((a, b) => 
     (b.hasUnviewed ? 1 : 0) - (a.hasUnviewed ? 1 : 0)
   );
@@ -103,7 +97,7 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
         if (error) throw error;
 
-        toast.success("Story added!");
+        toast.success("Story added to Glint!");
         onStoryAdded();
         setSheetOpen(false);
       } catch (error) {
@@ -137,14 +131,14 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
               onClick={() => !uploading && setSheetOpen(true)}
               disabled={uploading}
             >
-              <div className="w-full h-full rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+              <div className="w-full h-full rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 relative overflow-hidden group hover:border-primary/50 transition-colors">
                 {uploading ? (
-                  <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
                 ) : (
                   <>
-                    <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors" />
-                    <Plus className="text-amber-500 w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2.5} />
-                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-full flex items-center justify-center border-[2px] border-background shadow-sm">
+                    <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+                    <Plus className="text-primary w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2.5} />
+                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-gradient-to-tr from-primary to-accent rounded-full flex items-center justify-center border-[2px] border-background shadow-sm">
                        <Plus className="text-white w-3 h-3" strokeWidth={3} />
                     </div>
                   </>
@@ -157,7 +151,6 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
 
           {/* User Stories Rail */}
           {sortedGroups.map((group, idx) => {
-            // Safe access: We know stories exists now
             const latestStory = group.stories[group.stories.length - 1];
             const isVideo = isVideoUrl(latestStory.image_url || "");
             const hasUnviewed = group.hasUnviewed;
@@ -170,11 +163,11 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
               >
                 <div className="relative w-[72px] h-[72px] sm:w-20 sm:h-20 transition-transform duration-300 ease-out group-hover:scale-105 group-active:scale-95">
                   
-                  {/* RING LOGIC */}
+                  {/* RING LOGIC: GLINT COLORS */}
                   <div className={cn(
                     "absolute inset-0 rounded-full transition-all duration-500",
                     hasUnviewed 
-                      ? "bg-gradient-to-tr from-amber-400 via-orange-500 to-yellow-600 animate-in fade-in" 
+                      ? "bg-gradient-to-tr from-primary via-blue-500 to-accent animate-in fade-in" 
                       : "bg-white/20 border border-white/10"
                   )} />
                   
@@ -210,16 +203,16 @@ export const Stories = ({ stories = [], onStoryAdded }: StoriesProps) => {
       {sheetOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSheetOpen(false)} />
-          <div className="relative w-full max-w-sm bg-background/80 backdrop-blur-3xl border-t sm:border border-white/10 sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95">
+          <div className="relative w-full max-w-sm bg-background/80 backdrop-blur-3xl border-t sm:border border-white/10 sm:rounded-[32px] shadow-2xl transition-all duration-300 ease-out animate-in slide-in-from-bottom-full sm:zoom-in-95">
             <div className="p-6 pb-8">
               <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mb-6 opacity-50" />
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold tracking-tight mb-1 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">Create Story</h3>
-                <p className="text-sm text-muted-foreground">Share your moments with friends</p>
+                <p className="text-sm text-muted-foreground">Share your moments on Glint</p>
               </div>
               <div className="space-y-3">
                 <button
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-amber-500/20"
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
                   onClick={openGallery}
                 >
                   <ImageIcon size={20} strokeWidth={2.5} />

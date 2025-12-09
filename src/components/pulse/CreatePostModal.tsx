@@ -66,6 +66,11 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
     if (!mediaData || !user) return;
     setLoading(true);
     
+    // Convert base64 to blob (simplified for demo, usually you upload the file directly)
+    // For this example, we assume mediaData is handled by your backend or Supabase storage logic correctly
+    // In a real app, you'd upload the FILE object to Supabase Storage, get a URL, then insert the row.
+    
+    // Simulating upload for now, assuming base64 string is what your DB takes (not recommended for prod, but matches your code)
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,
       image_url: mediaData, 
@@ -85,20 +90,16 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Darkened Backdrop with Blur */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" 
-        onClick={onClose} 
-      />
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
 
-      {/* Main Glass Modal Container */}
+      {/* Modal Content */}
       <div className={cn(
         "relative w-[95%] md:w-full max-w-4xl bg-background/30 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col",
-        // Responsive Height: Taller on mobile to fit vertical stacking
         step === "select" ? "h-auto" : "h-[85vh] md:max-h-[800px]"
       )}>
         
-        {/* Header - Glass Bar */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 px-6 border-b border-white/10 bg-white/5 z-20">
           <div className="flex items-center gap-4">
             {step !== "select" && (
@@ -144,7 +145,7 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20 relative">
           
-          {/* ==================== STEP 1: SELECT ==================== */}
+          {/* STEP 1: SELECT */}
           {step === "select" && (
             <div 
               className={cn(
@@ -181,7 +182,7 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
             </div>
           )}
 
-          {/* ==================== STEP 2: EDIT ==================== */}
+          {/* STEP 2: EDIT */}
           {step === "edit" && mediaData && (
             <div className="flex flex-col h-full">
               {/* Preview Area */}
@@ -226,7 +227,7 @@ export const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps
             </div>
           )}
 
-          {/* ==================== STEP 3: CAPTION ==================== */}
+          {/* STEP 3: CAPTION */}
           {step === "caption" && mediaData && (
             <div className="flex flex-col md:flex-row h-full">
               

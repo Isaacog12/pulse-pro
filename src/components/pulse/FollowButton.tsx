@@ -109,7 +109,7 @@ export const FollowButton = ({
         // State Styles
         isFollowing
           ? "bg-secondary/30 backdrop-blur-md border border-white/10 text-foreground hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 shadow-sm" // Glassy "Following"
-          : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 border-0", // Gradient "Follow"
+          : "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white shadow-lg shadow-primary/25 border-0", // Glint Gradient "Follow"
         className
       )}
     >
@@ -124,7 +124,7 @@ export const FollowButton = ({
             </>
           ) : (
             <>
-              <UserCheck size={16} className="mr-2 text-primary/80" />
+              <UserCheck size={16} className="mr-2 text-primary" />
               Following
             </>
           )}

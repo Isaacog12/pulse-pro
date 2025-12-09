@@ -14,7 +14,7 @@ import { UserSearchModal } from "@/components/pulse/UserSearchModal";
 import { ExploreView } from "@/components/pulse/ExploreView";
 import { ProfileViewModal } from "@/components/pulse/ProfileViewModal";
 import { PostDetailModal } from "@/components/pulse/PostDetailModal";
-import { PulseLogo } from "@/components/pulse/PulseLogo";
+import { GlintLogo } from "@/components/pulse/GlintLogo"; // ✅ Rebranded Logo
 import { PulseLoader } from "@/components/pulse/WaveLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateLastSeen } from "@/hooks/useUpdateLastSeen";
@@ -58,7 +58,7 @@ interface Story {
 
 const Index = () => {
   const { user, profile, loading: authLoading } = useAuth();
-  useUpdateLastSeen(); // Track user online status
+  useUpdateLastSeen(); 
   
   const [currentView, setCurrentView] = useState<ViewType>("home");
   const [isMobile, setIsMobile] = useState(false);
@@ -82,26 +82,22 @@ const Index = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 1. DEEP LINKING LOGIC
+  // Deep Linking Logic
   useEffect(() => {
-    // Only run if user is logged in
     if (!user) return;
-
     const params = new URLSearchParams(window.location.search);
     const postIdParam = params.get("post");
     const profileIdParam = params.get("profile");
 
     if (postIdParam) {
       setViewingPostId(postIdParam);
-      // Clean URL after handling to prevent re-opening on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-
     if (profileIdParam) {
       setViewingProfileId(profileIdParam);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [user]); // Re-run when user logs in
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -110,37 +106,19 @@ const Index = () => {
     }
   }, [user]);
 
-  // Realtime subscription for posts
   useEffect(() => {
     if (!user) return;
-
     const channel = supabase
       .channel("posts-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => {
-          fetchPosts();
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => fetchPosts())
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const fetchPosts = async () => {
     if (!user) return;
-
-    const { data: followingData } = await supabase
-      .from("followers")
-      .select("following_id")
-      .eq("follower_id", user.id);
-
+    const { data: followingData } = await supabase.from("followers").select("following_id").eq("follower_id", user.id);
     const followingIds = followingData?.map((f) => f.following_id) || [];
-    
-    // Include the current user's posts + posts from people they follow
     const userIdsToFetch = [user.id, ...followingIds];
 
     if (userIdsToFetch.length === 0) {
@@ -164,29 +142,10 @@ const Index = () => {
 
     const postsWithCounts = await Promise.all(
       (postsData || []).map(async (post) => {
-        const { count: likesCount } = await supabase
-          .from("likes")
-          .select("*", { count: "exact", head: true })
-          .eq("post_id", post.id);
-
-        const { count: commentsCount } = await supabase
-          .from("comments")
-          .select("*", { count: "exact", head: true })
-          .eq("post_id", post.id);
-
-        const { data: likeData } = await supabase
-          .from("likes")
-          .select("id")
-          .eq("post_id", post.id)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        const { data: savedData } = await supabase
-          .from("saved_posts")
-          .select("id")
-          .eq("post_id", post.id)
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { count: likesCount } = await supabase.from("likes").select("*", { count: "exact", head: true }).eq("post_id", post.id);
+        const { count: commentsCount } = await supabase.from("comments").select("*", { count: "exact", head: true }).eq("post_id", post.id);
+        const { data: likeData } = await supabase.from("likes").select("id").eq("post_id", post.id).eq("user_id", user.id).maybeSingle();
+        const { data: savedData } = await supabase.from("saved_posts").select("id").eq("post_id", post.id).eq("user_id", user.id).maybeSingle();
 
         return {
           ...post,
@@ -197,19 +156,13 @@ const Index = () => {
         };
       })
     );
-
     setPosts(postsWithCounts);
     setLoading(false);
   };
 
   const fetchStories = async () => {
     if (!user) return;
-
-    const { data: followingData } = await supabase
-      .from("followers")
-      .select("following_id")
-      .eq("follower_id", user.id);
-
+    const { data: followingData } = await supabase.from("followers").select("following_id").eq("follower_id", user.id);
     const followingIds = followingData?.map((f) => f.following_id) || [];
     const userIdsToFetch = [user.id, ...followingIds];
 
@@ -228,17 +181,14 @@ const Index = () => {
       .gte("created_at", twentyFourHoursAgo.toISOString())
       .order("created_at", { ascending: false });
 
-    if (data) {
-      setStories(data);
-    }
+    if (data) setStories(data);
   };
 
-  // Loading screen
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <PulseLogo size="lg" animated />
+          <GlintLogo size="lg" animated /> {/* Rebranded Loader */}
           <div className="mt-8">
             <PulseLoader />
           </div>
@@ -247,20 +197,15 @@ const Index = () => {
     );
   }
 
-  // Auth screen
   if (!user) {
     return <AuthPage />;
   }
 
-  // Handle create view (Mobile Fullscreen)
   if (currentView === "create") {
     return (
       <CreatePostModal
         onClose={() => setCurrentView("home")}
-        onPostCreated={() => {
-          fetchPosts();
-          setCurrentView("home");
-        }}
+        onPostCreated={() => { fetchPosts(); setCurrentView("home"); }}
       />
     );
   }
@@ -269,7 +214,6 @@ const Index = () => {
     <div className="min-h-screen bg-background text-foreground relative selection:bg-primary/20">
       
       <div className="flex">
-        {/* Desktop Navigation Sidebar */}
         {!isMobile && (
           <Navigation
             currentView={currentView}
@@ -279,15 +223,24 @@ const Index = () => {
           />
         )}
 
-        {/* Main Content Area */}
         <main 
           className={cn(
             "flex-1 w-full transition-all duration-300",
-            // MOBILE: Add padding top/bottom to clear the fixed headers/nav
             isMobile ? "pt-[88px] pb-28" : "md:pl-0 md:pt-8 md:pr-8 max-w-2xl mx-auto"
           )}
         >
-          {/* Views */}
+           {/* Mobile Header (Rebranded) */}
+           {isMobile && (
+            <header className="fixed top-0 left-0 right-0 z-40 bg-background/60 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between shadow-sm">
+              <div className="flex items-center space-x-2">
+                <GlintLogo size="sm" />
+                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tracking-tight">
+                  Glint
+                </h1>
+              </div>
+            </header>
+          )}
+
           {currentView === "home" && (
             <div className="animate-in fade-in duration-500">
               <Stories stories={stories} onStoryAdded={fetchStories} />
@@ -372,12 +325,11 @@ const Index = () => {
           {currentView === "reels" && (
             <div className="p-4 text-center py-32 animate-in fade-in">
               <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent mb-4">Reels</h2>
-              <p className="text-muted-foreground">Coming soon to Pulse Pro...</p>
+              <p className="text-muted-foreground">Coming soon to Glint Pro...</p>
             </div>
           )}
         </main>
 
-        {/* Mobile Navigation (Fixed Bottom) */}
         {isMobile && (
           <Navigation
             currentView={currentView}

@@ -210,7 +210,6 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
               <div className="space-y-3">
                 {group.messages.map((msg, i) => {
                   const isOwn = msg.sender_id === user?.id;
-                  const isLastInGroup = i === group.messages.length - 1 || group.messages[i + 1].sender_id !== msg.sender_id;
                   
                   return (
                     <div

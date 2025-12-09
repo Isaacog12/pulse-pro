@@ -109,7 +109,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
             <div className="relative group cursor-pointer">
               
               {/* Glow Effect */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-accent/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500" />
               
               {/* Avatar Image */}
               <div className="relative w-32 h-32 rounded-full p-[3px] bg-gradient-to-br from-white/20 to-white/5 border border-white/10 shadow-2xl">
@@ -194,7 +194,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
           <Button 
             onClick={handleSave} 
             disabled={loading} 
-            className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold shadow-lg shadow-blue-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white font-bold shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : (
               <span className="flex items-center gap-2">
@@ -207,4 +207,4 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
       </div>
     </div>
   );
-};  
+};

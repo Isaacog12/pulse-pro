@@ -7,51 +7,46 @@
 
 @layer base {
   :root {
-    /* -- Modern Deep Dark Theme -- */
-    /* Background: Deep Void Blue/Black */
-    --background: 224 71% 4%;
+    /* -- Glint Modern Deep Theme -- */
+    --background: 230 25% 5%;
     --foreground: 210 40% 98%;
 
-    /* Card: Slightly lighter, slightly tinted */
-    --card: 224 71% 7%;
+    --card: 230 25% 8%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 224 71% 7%;
+    --popover: 230 25% 8%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Electric Cyan */
-    --primary: 190 100% 50%;
-    --primary-foreground: 222 47% 5%;
+    /* Glint Brand Colors */
+    --primary: 190 100% 50%; /* Electric Cyan */
+    --primary-foreground: 230 25% 5%;
 
-    /* Secondary: Muted Cool Grey */
-    --secondary: 215 28% 17%;
+    --secondary: 215 20% 15%;
     --secondary-foreground: 210 40% 98%;
 
-    /* Muted: Subtle separators */
-    --muted: 215 28% 17%;
-    --muted-foreground: 217 19% 60%;
+    --muted: 215 20% 15%;
+    --muted-foreground: 215 20% 65%;
 
-    /* Accent: Neon Fuchsia */
-    --accent: 292 84% 61%;
+    --accent: 270 90% 65%; /* Deep Violet/Purple */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
+    --border: 215 20% 15%;
+    --input: 215 20% 15%;
     --ring: 190 100% 50%;
 
     --radius: 1rem;
 
-    /* -- Custom Pulse Variables -- */
-    --pulse-cyan: 190 100% 50%;
-    --pulse-fuchsia: 310 100% 65%;
-    --pulse-violet: 258 90% 66%;
+    /* -- Custom Glint Variables -- */
+    --glint-cyan: 190 100% 50%;
+    --glint-purple: 270 90% 65%;
+    --glint-gold: 45 100% 50%;
     
     /* Complex Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--pulse-cyan)), hsl(var(--pulse-fuchsia)));
-    --gradient-glow: radial-gradient(circle at center, hsl(var(--pulse-cyan) / 0.15) 0%, transparent 70%);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--glint-cyan)), hsl(var(--glint-purple)));
+    --gradient-gold: linear-gradient(135deg, #FFD700, #FFA500);
     --gradient-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   }
 }
@@ -88,7 +83,6 @@
 }
 
 @layer utilities {
-  /* -- Utility: Hide Scrollbar -- */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -97,7 +91,6 @@
     display: none;
   }
 
-  /* -- Utility: Custom Scrollbar -- */
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
@@ -108,72 +101,42 @@
     @apply bg-white/10 rounded-full hover:bg-white/20;
   }
 
-  /* Add inside @layer utilities or at the bottom of index.css */
-.ease-out-expo {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
+  .ease-out-expo {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
   /* -- Premium Glassmorphism -- */
-  /* Standard Glass */
   .glass {
     @apply bg-background/60 backdrop-blur-xl border border-white/10 shadow-lg;
     backdrop-filter: blur(12px) saturate(180%);
   }
 
-  /* Strong Glass (For modals/popups) */
   .glass-strong {
     @apply bg-background/80 backdrop-blur-2xl border border-white/10 shadow-2xl;
     backdrop-filter: blur(24px) saturate(200%);
   }
 
-  /* Interactive Glass (For buttons/cards) */
-  .glass-interactive {
-    @apply glass hover:bg-white/10 active:scale-[0.98] transition-all duration-300 cursor-pointer;
-  }
-
-  /* -- Gradient Text -- */
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent;
   }
 
-  /* -- Noise Texture (Adds realism) -- */
   .bg-noise {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
   }
 
   /* -- Advanced Animations -- */
-  
-  /* Floating Animation */
   .animate-float {
     animation: float 6s ease-in-out infinite;
     will-change: transform;
   }
 
-  /* Glowing Pulse */
   .animate-glow {
     animation: glow 3s ease-in-out infinite alternate;
   }
 
-  /* Gradient Shimmer (For Skeletons/Loading) */
   .animate-shimmer {
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
-  }
-
-  /* Gradient Border */
-  .gradient-border {
-    position: relative;
-    background: var(--background);
-    border-radius: var(--radius);
-  }
-  .gradient-border::before {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    z-index: -1;
-    border-radius: inherit;
-    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
-    opacity: 0.5;
   }
 
   /* Keyframes */
@@ -183,8 +146,8 @@
   }
 
   @keyframes glow {
-    from { box-shadow: 0 0 10px -5px hsl(var(--pulse-cyan) / 0.5); }
-    to { box-shadow: 0 0 25px 5px hsl(var(--pulse-fuchsia) / 0.3); }
+    from { box-shadow: 0 0 10px -5px hsl(var(--glint-cyan) / 0.5); }
+    to { box-shadow: 0 0 25px 5px hsl(var(--glint-purple) / 0.3); }
   }
 
   @keyframes shimmer {
@@ -192,18 +155,46 @@
     100% { background-position: -200% 0; }
   }
 
-  @keyframes pulse-ring {
+  /* Glint Ring Animation (Replaces Pulse Ring) */
+  @keyframes glint-ring {
     0% { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 0 0 rgba(var(--primary), 0.7); }
     70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(var(--primary), 0); }
     100% { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 0 0 rgba(var(--primary), 0); }
   }
   
-  @keyframes enter {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+  .animate-glint-ring {
+    animation: glint-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* New Utility: Inner Shadow for inputs */
+  /* Story Cube Transitions (Critical for Story Viewer) */
+  @keyframes cubeRotateNext {
+    0% { transform: translateZ(0) rotateY(0); opacity: 1; }
+    100% { transform: translateZ(-500px) rotateY(-90deg); opacity: 0; }
+  }
+
+  @keyframes cubeRotatePrev {
+    0% { transform: translateZ(0) rotateY(0); opacity: 1; }
+    100% { transform: translateZ(-500px) rotateY(90deg); opacity: 0; }
+  }
+
+  .animate-cube-rotate-next {
+    animation: cubeRotateNext 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    transform-origin: 100% 50%;
+  }
+
+  .animate-cube-rotate-prev {
+    animation: cubeRotatePrev 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    transform-origin: 0% 50%;
+  }
+
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
   .inner-shadow {
     box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
   }

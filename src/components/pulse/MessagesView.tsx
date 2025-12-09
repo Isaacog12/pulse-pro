@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircleDashed, Search, Plus } from "lucide-react";
+import { MessageSquareDashed, Search, Plus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -133,86 +133,107 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
     conv.other_user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-10">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Messages</h2>
+    <div className="max-w-2xl mx-auto pb-24 px-4 sm:px-6 animate-in fade-in duration-500">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between py-6 mb-2 sticky top-0 z-20 bg-background/0 backdrop-blur-sm -mx-4 px-4">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          Messages
+        </h2>
         <button
           onClick={onNewMessage}
-          className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="p-3 rounded-full bg-gradient-to-tr from-primary to-accent text-white shadow-lg hover:shadow-primary/20 hover:scale-105 transition-all active:scale-95"
         >
-          <Plus size={20} />
+          <Plus size={20} strokeWidth={3} />
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-        <Input
-          placeholder="Search messages..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search Bar */}
+      <div className="relative mb-6 group">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+        <div className="relative bg-secondary/30 border border-white/5 rounded-2xl flex items-center shadow-inner group-focus-within:border-primary/30 group-focus-within:bg-secondary/50 transition-all duration-300">
+          <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
+          <Input
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-3 h-12 bg-transparent border-none focus-visible:ring-0 placeholder:text-muted-foreground/50 text-base"
+          />
+        </div>
       </div>
 
-      {filteredConversations.length === 0 ? (
-        <div className="text-center text-muted-foreground py-16">
-          <MessageCircleDashed className="mx-auto mb-4 text-muted-foreground/50" size={48} />
-          <p className="text-lg font-medium">No messages yet</p>
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      ) : filteredConversations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 text-muted-foreground/50">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-secondary/50 to-transparent flex items-center justify-center mb-6 border border-white/5">
+            <MessageSquareDashed size={40} className="stroke-[1.5]" />
+          </div>
+          <p className="text-lg font-medium text-foreground/80">No messages yet</p>
           <p className="text-sm">Start a conversation with someone!</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredConversations.map((conv) => (
             <div
               key={conv.id}
               onClick={() => onSelectConversation(conv.id, conv.other_user)}
               className={cn(
-                "glass rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all hover:bg-secondary/50",
-                conv.unread_count > 0 && "border-l-4 border-primary bg-primary/5"
+                "group relative p-4 rounded-[24px] flex items-center gap-4 cursor-pointer transition-all duration-300 border",
+                // Active/Unread State
+                conv.unread_count > 0
+                  ? "bg-secondary/40 backdrop-blur-xl border-primary/20 shadow-lg shadow-primary/5" 
+                  : "bg-background/20 border-white/5 hover:bg-white/5 hover:border-white/10"
               )}
             >
-              <div className="relative">
-                <img
-                  src={
-                    conv.other_user.avatar_url ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user.id}`
-                  }
-                  alt={conv.other_user.username}
-                  className="w-14 h-14 rounded-full object-cover bg-secondary"
-                />
+              {/* Avatar & Status */}
+              <div className="relative flex-shrink-0">
+                <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-white/10 to-transparent group-hover:from-primary/50 group-hover:to-accent/50 transition-colors">
+                  <img
+                    src={
+                      conv.other_user.avatar_url ||
+                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user.id}`
+                    }
+                    alt={conv.other_user.username}
+                    className="w-full h-full rounded-full object-cover bg-secondary"
+                  />
+                </div>
                 {conv.unread_count > 0 && (
-                  <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-background shadow-sm animate-in zoom-in">
                     {conv.unread_count}
                   </div>
                 )}
               </div>
 
+              {/* Text Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-foreground">{conv.other_user.username}</p>
+                <div className="flex items-center justify-between mb-0.5">
+                  <p className="font-semibold text-foreground text-base group-hover:text-primary transition-colors">
+                    {conv.other_user.username}
+                  </p>
                   {conv.last_message && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] font-medium text-muted-foreground/60 whitespace-nowrap ml-2">
                       {formatTime(conv.last_message.created_at)}
                     </span>
                   )}
                 </div>
+                
                 {conv.last_message && (
-                  <p className="text-sm text-muted-foreground truncate">
-                    {conv.last_message.sender_id === user?.id && "You: "}
+                  <p className={cn(
+                    "text-sm truncate pr-4",
+                    conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                  )}>
+                    {conv.last_message.sender_id === user?.id && <span className="opacity-60">You: </span>}
                     {conv.last_message.content}
                   </p>
                 )}
               </div>
+
+              {/* Hover Indicator (Desktop) */}
+              <div className="w-1 h-8 bg-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           ))}
         </div>
