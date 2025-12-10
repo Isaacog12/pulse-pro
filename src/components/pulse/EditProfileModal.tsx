@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Camera, Loader2, User, FileText, Check } from "lucide-react";
+import { X, Camera, Loader2, User, FileText, Check, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,10 +15,17 @@ interface EditProfileModalProps {
 
 export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModalProps) => {
   const { user, profile, updateProfile } = useAuth();
+  
+  // Profile State
   const [username, setUsername] = useState(profile?.username || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url || null);
+  
+  // Password State
+  const [newPassword, setNewPassword] = useState("");
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  
   const [loading, setLoading] = useState(false);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,8 +52,20 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
     setLoading(true);
 
     try {
-      let avatarUrl = profile?.avatar_url;
+      // 1. Update Password (if provided)
+      if (newPassword.trim()) {
+        if (newPassword.length < 6) {
+          toast.error("Password must be at least 6 characters");
+          setLoading(false);
+          return;
+        }
+        const { error: passwordError } = await supabase.auth.updateUser({ password: newPassword });
+        if (passwordError) throw passwordError;
+        toast.success("Password updated successfully");
+      }
 
+      // 2. Upload Avatar (if changed)
+      let avatarUrl = profile?.avatar_url;
       if (avatarFile) {
         const fileExt = avatarFile.name.split(".").pop();
         const fileName = `${user.id}/avatar.${fileExt}`;
@@ -56,6 +75,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
         avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       }
 
+      // 3. Update Profile Data
       await updateProfile({
         username: username.trim(),
         bio: bio.trim() || null,
@@ -98,7 +118,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
           <h2 className="text-lg font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Edit Profile
           </h2>
-          <div className="w-10" /> {/* Spacer for centering */}
+          <div className="w-10" /> 
         </div>
 
         {/* Content - Scrollable */}
@@ -107,11 +127,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
           {/* Avatar Section */}
           <div className="flex flex-col items-center justify-center">
             <div className="relative group cursor-pointer">
-              
-              {/* Glow Effect */}
               <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-accent/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500" />
-              
-              {/* Avatar Image */}
               <div className="relative w-32 h-32 rounded-full p-[3px] bg-gradient-to-br from-white/20 to-white/5 border border-white/10 shadow-2xl">
                 <div className="w-full h-full rounded-full overflow-hidden bg-black/50 relative">
                   <img
@@ -119,23 +135,12 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
                     alt="Avatar"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  
-                  {/* Overlay */}
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px]">
                     <Camera size={32} className="text-white drop-shadow-md scale-90 group-hover:scale-100 transition-transform" />
                   </div>
                 </div>
               </div>
-
-              {/* Input (Hidden) */}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-              />
-              
-              {/* Edit Badge */}
+              <input type="file" accept="image/*" onChange={handleAvatarChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
               <div className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background z-10 pointer-events-none">
                 <Camera size={14} />
               </div>
@@ -144,9 +149,9 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
           </div>
 
           {/* Form Fields */}
-          <div className="space-y-5">
+          <div className="space-y-6">
             
-            {/* Username Input */}
+            {/* Username */}
             <div className="space-y-2 group">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Username</label>
               <div className="relative">
@@ -163,7 +168,7 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
               </div>
             </div>
 
-            {/* Bio Input */}
+            {/* Bio */}
             <div className="space-y-2 group">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bio</label>
@@ -184,6 +189,37 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
                   className="pl-11 pt-3.5 bg-secondary/30 border-transparent focus:bg-background/80 focus:border-primary/50 rounded-2xl resize-none transition-all shadow-sm min-h-[100px]"
                 />
               </div>
+            </div>
+
+            {/* Change Password Section */}
+            <div className="pt-2">
+              <button 
+                type="button"
+                onClick={() => setShowPasswordSection(!showPasswordSection)}
+                className="flex items-center justify-between w-full p-4 rounded-2xl bg-secondary/30 hover:bg-secondary/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-background/50 text-muted-foreground group-hover:text-primary transition-colors">
+                    <Lock size={18} />
+                  </div>
+                  <span className="font-semibold text-sm">Change Password</span>
+                </div>
+                {showPasswordSection ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {showPasswordSection && (
+                <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 fade-in duration-300">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">New Password</label>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 6 chars)"
+                    className="h-12 bg-secondary/30 border-transparent focus:bg-background/80 focus:border-primary/50 rounded-2xl transition-all shadow-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground ml-1">Leave empty to keep current password.</p>
+                </div>
+              )}
             </div>
 
           </div>
