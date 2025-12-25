@@ -43,7 +43,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
   const [settings, setSettings] = useState({
     notifications: true,
     emailNotifications: true,
-    privateAccount: false,
+    privateAccount: false, // Default false, will update from DB
     darkMode: true,
     ghostMode: false,
     showActivity: true,
@@ -53,7 +53,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
 
   // --- 1. LOAD SETTINGS FROM DB & LOCAL STORAGE ---
   useEffect(() => {
-    // Load Dark Mode (Rebranded key: glint_theme)
+    // Load Dark Mode
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("glint_theme");
       const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -110,7 +110,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
       
       const { error } = await supabase
         .from("profiles")
-        .update({ is_private: value } as any) // Type cast for safety
+        .update({ is_private: value } as any)
         .eq("id", user.id);
 
       if (error) {

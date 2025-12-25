@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Loader2, Sparkles, X, Heart, MapPin, TrendingUp, Grid3X3, CheckCircle } from "lucide-react";
+import { Search, UserPlus, Loader2, Sparkles, X, Heart, MapPin, TrendingUp, Grid3X3, CheckCircle, BrainCircuit } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,41 @@ interface ExploreViewProps {
   onViewPost: (postId: string) => void;
 }
 
+// --- Gemini AI Helper ---
+const generateRelatedKeywords = async (query: string): Promise<string[]> => {
+  const apiKey = ""; // ⚠️ Add your Gemini API Key here or use env variable
+  if (!apiKey) {
+    console.warn("Gemini API Key missing. Falling back to basic search.");
+    return [query];
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ 
+            parts: [{ 
+              text: `You are a search assistant for a social media app. 
+              Convert the search query "${query}" into a list of 3-5 specific, single-word keywords that might appear in a user's bio or username. 
+              For example, if query is "nature lover", return "hiking, outdoors, photography, travel".
+              Return ONLY the keywords separated by commas. No intro text.` 
+            }] 
+          }]
+        })
+      }
+    );
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return text.split(",").map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  } catch (error) {
+    console.error("AI Error:", error);
+    return [query];
+  }
+};
+
 export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,6 +77,10 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
   const [showResults, setShowResults] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
 
+  // AI Features State
+  const [isAiMode, setIsAiMode] = useState(false);
+  const [aiExpandedTerms, setAiExpandedTerms] = useState<string[]>([]);
+
   // Debounce Search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,10 +90,11 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
       } else {
         setSearchResults([]);
         setShowResults(false);
+        setAiExpandedTerms([]);
       }
-    }, 400);
+    }, 600); // Increased debounce slightly for AI calls
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, isAiMode]);
 
   useEffect(() => {
     if (user) {
@@ -78,6 +118,7 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
     if (error) {
       console.error("Explore Fetch Error:", error);
     } else if (data) {
+      // Simple shuffle for discovery feel
       const shuffled = [...data].sort(() => 0.5 - Math.random());
       setExplorePosts(shuffled);
     }
@@ -116,14 +157,34 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
 
   const searchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username, avatar_url, bio, is_verified, is_pro")
-      .neq("id", user?.id)
-      .ilike("username", `%${searchQuery}%`)
-      .limit(10);
+    setAiExpandedTerms([]);
 
-    if (!error && data) setSearchResults(data);
+    try {
+      let queryBuilder = supabase
+        .from("profiles")
+        .select("id, username, avatar_url, bio, is_verified, is_pro")
+        .neq("id", user?.id);
+
+      if (isAiMode && searchQuery.length > 2) {
+        // AI Logic: Expand terms then search bio OR username
+        const keywords = await generateRelatedKeywords(searchQuery);
+        setAiExpandedTerms(keywords);
+        
+        // Construct OR filter: username.ilike.%term% OR bio.ilike.%term%
+        // Note: This is a simplified implementation. Real-world vector search is better for this.
+        const orConditions = keywords.map(k => `username.ilike.%${k}%,bio.ilike.%${k}%`).join(",");
+        queryBuilder = queryBuilder.or(orConditions);
+      } else {
+        // Standard Logic: Exact username match
+        queryBuilder = queryBuilder.ilike("username", `%${searchQuery}%`);
+      }
+
+      const { data, error } = await queryBuilder.limit(10);
+
+      if (!error && data) setSearchResults(data);
+    } catch (err) {
+      console.error("Search error", err);
+    }
     setLoading(false);
   };
 
@@ -134,18 +195,38 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
       <div className="sticky top-0 z-40 px-4 py-4 -mx-4 mb-6 bg-background/60 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
         <div className="max-w-3xl mx-auto">
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-accent/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
-            <div className="relative bg-background/40 border border-white/10 rounded-2xl flex items-center shadow-sm group-focus-within:border-primary/30 group-focus-within:shadow-lg transition-all duration-300">
-              <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
+            {/* AI Glow Effect */}
+            <div className={cn(
+              "absolute inset-0 bg-gradient-to-r rounded-2xl blur-lg transition-opacity duration-500",
+              isAiMode ? "from-violet-500/20 via-fuchsia-500/20 to-cyan-500/20 opacity-100" : "from-primary/10 via-purple-500/10 to-accent/10 opacity-0 group-focus-within:opacity-100"
+            )} />
+            
+            <div className={cn(
+              "relative bg-background/40 border rounded-2xl flex items-center shadow-sm transition-all duration-300",
+              isAiMode ? "border-violet-500/30 shadow-violet-500/10" : "border-white/10 group-focus-within:border-primary/30 group-focus-within:shadow-lg"
+            )}>
+              {/* AI Toggle Button */}
+              <button 
+                onClick={() => setIsAiMode(!isAiMode)}
+                className={cn(
+                  "ml-2 p-2 rounded-xl transition-all duration-300 flex items-center justify-center",
+                  isAiMode ? "bg-violet-600 text-white shadow-lg" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+                title={isAiMode ? "Disable AI Smart Search" : "Enable AI Smart Search"}
+              >
+                {isAiMode ? <BrainCircuit size={18} className="animate-pulse" /> : <Search size={18} />}
+              </button>
+
               <Input
-                placeholder="Search for people..."
+                placeholder={isAiMode ? "Describe who you're looking for..." : "Search by username..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="border-none bg-transparent h-12 focus-visible:ring-0 placeholder:text-muted-foreground/50"
               />
+              
               {searchQuery && (
                 <button 
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => { setSearchQuery(""); setAiExpandedTerms([]); }}
                   className="mr-3 p-1.5 hover:bg-secondary rounded-full text-muted-foreground transition-colors"
                 >
                   <X size={14} />
@@ -157,6 +238,18 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
             {showResults && (
               <>
                 <div className="absolute top-full left-0 right-0 mt-3 bg-background/80 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-top-2 duration-200 z-50">
+                  
+                  {/* AI Context Bar */}
+                  {isAiMode && aiExpandedTerms.length > 0 && !loading && (
+                    <div className="bg-violet-500/10 px-4 py-2 border-b border-violet-500/20 text-[10px] text-violet-300 flex flex-wrap gap-1 items-center">
+                       <Sparkles size={10} />
+                       <span>AI looked for:</span>
+                       {aiExpandedTerms.map((term, i) => (
+                         <span key={i} className="bg-violet-500/20 px-1.5 py-0.5 rounded text-violet-200">{term}</span>
+                       ))}
+                    </div>
+                  )}
+
                   {loading ? (
                     <div className="p-4 space-y-3">
                       {[1,2,3].map(i => (
@@ -168,8 +261,9 @@ export const ExploreView = ({ onViewProfile, onViewPost }: ExploreViewProps) => 
                     </div>
                   ) : searchResults.length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
-                      <Search className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm">No users found</p>
+                      {isAiMode ? <BrainCircuit className="w-10 h-10 mx-auto mb-3 opacity-20 text-violet-500" /> : <Search className="w-10 h-10 mx-auto mb-3 opacity-20" />}
+                      <p className="text-sm">No matching profiles found</p>
+                      {isAiMode && <p className="text-xs opacity-50 mt-1">Try describing it differently</p>}
                     </div>
                   ) : (
                     <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">

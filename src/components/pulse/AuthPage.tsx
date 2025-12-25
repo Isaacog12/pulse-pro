@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff, Check, AlertCircle } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GlintLogo } from "./GlintLogo"; // Updated Logo Import
+import { GlintLogo } from "./GlintLogo";
 import { WaveLoader } from "./WaveLoader";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,31 +22,8 @@ export const AuthPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  // Enhanced Password Strength Logic
-  const getPasswordStrength = (pass: string) => {
-    if (!pass) return { score: 0, label: "", color: "bg-muted" };
-    
-    let score = 0;
-    if (pass.length > 7) score++;
-    if (/[A-Z]/.test(pass)) score++;
-    if (/[0-9]/.test(pass)) score++;
-    if (/[^A-Za-z0-9]/.test(pass)) score++;
-
-    switch (score) {
-      case 0: return { score: 1, label: "Too Weak", color: "bg-red-500/50" };
-      case 1: return { score: 1, label: "Weak", color: "bg-red-500" };
-      case 2: return { score: 2, label: "Medium", color: "bg-yellow-500" };
-      case 3: return { score: 3, label: "Strong", color: "bg-blue-500" };
-      case 4: return { score: 4, label: "Secure", color: "bg-green-500" };
-      default: return { score: 0, label: "", color: "bg-muted" };
-    }
-  };
-
-  const strength = getPasswordStrength(password);
-
   useEffect(() => {
-    // Rebranded Storage Key
-    const rememberedEmail = localStorage.getItem("glint_remembered_email");
+    const rememberedEmail = localStorage.getItem("pulse_email");
     if (rememberedEmail) {
       setEmail(rememberedEmail);
       setRememberMe(true);
@@ -59,7 +36,7 @@ export const AuthPage = () => {
 
     try {
       if (view === "forgot") {
-        setTimeout(() => setResetSent(true), 1500); // Mock for now
+        setTimeout(() => setResetSent(true), 1500);
         return;
       }
 
@@ -71,20 +48,19 @@ export const AuthPage = () => {
         }
         const { error } = await signUp(email, password, username);
         if (error) throw error;
-        toast.success("Account created! Please check your email.");
       }
 
       if (view === "login") {
         const { error } = await signIn(email, password);
         if (error) throw error;
-        
-        if (rememberMe) localStorage.setItem("glint_remembered_email", email);
-        else localStorage.removeItem("glint_remembered_email");
+
+        if (rememberMe) localStorage.setItem("pulse_email", email);
+        else localStorage.removeItem("pulse_email");
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
     } finally {
-      setLoading(false);
+      if (view !== "forgot") setLoading(false);
     }
   };
 
@@ -93,229 +69,163 @@ export const AuthPage = () => {
   const isForgot = view === "forgot";
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      
-      {/* Dynamic Background Effects */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: "8s" }} />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-purple-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: "10s" }} />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+    <div className="min-h-screen grid lg:grid-cols-2 bg-background font-sans text-foreground overflow-hidden">
+
+      {/* Left Panel: Visual/Brand (Hidden on Mobile) */}
+      <div className="hidden lg:flex relative bg-black items-center justify-center p-12 overflow-hidden">
+        {/* Abstract Gradient Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,_#1a1d26_0,_transparent_50%),radial-gradient(circle_at_100%_100%,_#0f0f12_0,_transparent_50%)]" />
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+
+        {/* Animated Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[128px] animate-pulse duration-[8000ms]" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[128px] animate-pulse duration-[10000ms]" />
+
+        <div className="relative z-10 text-center space-y-6 max-w-lg">
+          <div className="mx-auto transform transition-transform hover:scale-105 duration-700">
+            <GlintLogo size="xl" animated />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
+            Connect with your circle.
+          </h1>
+          <p className="text-lg text-white/50 leading-relaxed">
+            Experience the next evolution of social connection. Minimalist, fast, and focused on what matters most.
+          </p>
+        </div>
       </div>
 
-      <div className="z-10 w-full max-w-[400px] flex flex-col items-center">
-        
-        {/* Logo */}
-        <div className="mb-8 cursor-pointer hover:scale-105 transition-transform duration-500 ease-out">
-          <GlintLogo size="lg" animated />
-        </div>
+      {/* Right Panel: Form */}
+      <div className="flex flex-col justify-center items-center p-6 sm:p-12 relative">
+        <div className="w-full max-w-[400px] space-y-8 animate-in slide-in-from-right-8 duration-700 fade-in">
 
-        {/* Main Glass Card */}
-        <div className="w-full bg-background/40 backdrop-blur-3xl border border-white/10 p-8 rounded-[32px] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden group animate-in zoom-in-95 duration-500">
-          
-          {/* Subtle Shine */}
-          <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/5 to-transparent -rotate-45 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex justify-center mb-8">
+            <GlintLogo size="lg" animated />
+          </div>
 
           {/* Header */}
-          <div className="text-center mb-8 relative z-10">
-            <h1 className="text-3xl font-bold text-foreground mb-2 tracking-tight transition-all">
-              {isSignup ? "Create Account" : isForgot ? "Reset Password" : "Welcome Back"}
-            </h1>
-            <p className="text-sm text-muted-foreground font-medium">
-              {isSignup ? "Join Glint to connect with friends" : isForgot ? "Enter email to restore access" : "Sign in to continue"}
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {isSignup ? "Create an account" : isForgot ? "Reset password" : "Welcome back"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {isSignup ? "Enter your details below to create your account" : isForgot ? "Enter your email address and we'll send you a link" : "Enter your credentials to access your account"}
             </p>
           </div>
 
-          {/* Tab Switcher */}
-          {!isForgot && (
-            <div className="flex bg-black/20 p-1 rounded-2xl mb-6 relative z-10 border border-white/5">
-              {(["login", "signup"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 capitalize relative overflow-hidden",
-                    view === v
-                      ? "text-white shadow-lg"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                  )}
-                >
-                  {view === v && (
-                    <div className="absolute inset-0 bg-secondary rounded-xl -z-10" />
-                  )}
-                  {v === "login" ? "Log In" : "Sign Up"}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-            
-            {/* Username */}
-            {isSignup && (
-              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                <div className={cn(
-                  "relative group transition-all duration-300 rounded-2xl border",
-                  focusedField === "username" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
-                )}>
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User size={18} className={cn("transition-colors", focusedField === "username" ? "text-blue-400" : "text-muted-foreground")} />
-                  </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* Controls */}
+            <div className="space-y-4">
+              {isSignup && (
+                <div className="relative group">
                   <Input
                     placeholder="Username"
-                    className="pl-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
+                    className="h-12 bg-secondary/30 border-secondary hover:border-primary/50 focus:border-primary transition-all duration-300 pl-11 rounded-lg"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     onFocus={() => setFocusedField("username")}
                     onBlur={() => setFocusedField(null)}
                     required={isSignup}
                   />
+                  <User size={18} className={cn("absolute left-4 top-3.5 transition-colors duration-300", focusedField === "username" ? "text-primary" : "text-muted-foreground")} />
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Email */}
-            <div className={cn(
-              "relative group transition-all duration-300 rounded-2xl border",
-              focusedField === "email" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
-            )}>
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail size={18} className={cn("transition-colors", focusedField === "email" ? "text-blue-400" : "text-muted-foreground")} />
+              <div className="relative group">
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  className="h-12 bg-secondary/30 border-secondary hover:border-primary/50 focus:border-primary transition-all duration-300 pl-11 rounded-lg"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField("email")}
+                  onBlur={() => setFocusedField(null)}
+                  required
+                />
+                <Mail size={18} className={cn("absolute left-4 top-3.5 transition-colors duration-300", focusedField === "email" ? "text-primary" : "text-muted-foreground")} />
               </div>
-              <Input
-                type="email"
-                placeholder="Email Address"
-                className="pl-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setFocusedField("email")}
-                onBlur={() => setFocusedField(null)}
-                required
-              />
-            </div>
 
-            {/* Password */}
-            {!isForgot && (
-              <div className="space-y-3 animate-in slide-in-from-bottom-2 fade-in duration-300">
-                <div className={cn(
-                  "relative group transition-all duration-300 rounded-2xl border",
-                  focusedField === "password" ? "bg-background/80 border-blue-500/50 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
-                )}>
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock size={18} className={cn("transition-colors", focusedField === "password" ? "text-blue-400" : "text-muted-foreground")} />
-                  </div>
+              {!isForgot && (
+                <div className="relative group">
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    className="pl-11 pr-11 h-12 bg-transparent border-none focus-visible:ring-0 rounded-2xl"
+                    className="h-12 bg-secondary/30 border-secondary hover:border-primary/50 focus:border-primary transition-all duration-300 pl-11 pr-11 rounded-lg"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setFocusedField("password")}
                     onBlur={() => setFocusedField(null)}
                     required
                   />
+                  <Lock size={18} className={cn("absolute left-4 top-3.5 transition-colors duration-300", focusedField === "password" ? "text-primary" : "text-muted-foreground")} />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className="absolute right-0 top-0 h-12 w-12 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+              )}
+            </div>
 
-                {/* Password Strength Meter */}
-                {isSignup && (
-                  <div className={cn("space-y-2 overflow-hidden transition-all duration-500", password ? "max-h-20 opacity-100" : "max-h-0 opacity-0")}>
-                    <div className="flex justify-between items-center px-1">
-                       <span className={cn("text-xs font-bold transition-colors duration-300", strength.color.replace("bg-", "text-"))}>
-                         {strength.label}
-                       </span>
-                       <span className="text-[10px] text-muted-foreground">{password.length}/8 chars</span>
-                    </div>
-                    <div className="flex gap-1.5 h-1.5 px-1">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-full flex-1 rounded-full transition-all duration-500 ease-out",
-                            i <= strength.score ? strength.color : "bg-secondary/50"
-                          )}
-                        />
-                      ))}
-                    </div>
+            {/* Auxiliary Links */}
+            <div className="flex items-center justify-between text-sm">
+              {isLogin && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember"
+                      checked={rememberMe}
+                      onCheckedChange={(c) => setRememberMe(!!c)}
+                      className="border-muted-foreground/30 data-[state=checked]:bg-primary"
+                    />
+                    <label htmlFor="remember" className="font-medium text-muted-foreground cursor-pointer select-none">Remember me</label>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Remember & Forgot */}
-            {isLogin && (
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center space-x-2 group">
-                  <Checkbox 
-                    id="remember" 
-                    checked={rememberMe}
-                    onCheckedChange={(c) => setRememberMe(!!c)}
-                    className="border-white/20 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                  />
-                  <label htmlFor="remember" className="text-xs font-medium text-muted-foreground cursor-pointer select-none group-hover:text-foreground transition-colors">
-                    Remember me
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setView("forgot"); setResetSent(false); }}
-                  className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-            )}
+                  <button type="button" onClick={() => { setView("forgot"); setResetSent(false); }} className="text-primary hover:text-primary/80 font-semibold transition-colors">
+                    Forgot password?
+                  </button>
+                </>
+              )}
+            </div>
 
             {/* Submit Button */}
             {resetSent ? (
-              <div className="bg-green-500/10 text-green-400 p-4 rounded-2xl text-center text-sm font-bold border border-green-500/20 animate-in zoom-in-95 flex items-center justify-center gap-2">
-                <Check size={16} /> Check your inbox!
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-4 rounded-lg flex items-center gap-3 animate-in zoom-in-95">
+                <div className="bg-emerald-500/20 p-1.5 rounded-full"><Check size={16} /></div>
+                <span className="text-sm font-semibold">Check your email for instructions</span>
               </div>
             ) : (
-              <Button
-                type="submit"
-                disabled={loading}
-                className={cn(
-                  "w-full h-12 rounded-2xl font-bold shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] mt-2",
-                  "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-blue-500/25"
-                )}
-              >
-                {loading ? <WaveLoader /> : (
-                  <span className="flex items-center gap-2">
-                    {isForgot ? "Send Reset Link" : isSignup ? "Create Account" : "Sign In"}
-                    <ArrowRight size={18} />
-                  </span>
-                )}
+              <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all active:scale-[0.98]">
+                {loading ? <WaveLoader /> : (isForgot ? "Send Reset Link" : isSignup ? "Create Account" : "Sign In")}
               </Button>
             )}
 
-            {/* Back Button */}
-            {isForgot && (
-              <button
-                type="button"
-                onClick={() => setView("login")}
-                className="w-full py-2 text-muted-foreground font-bold hover:text-foreground flex items-center justify-center transition-colors group"
-              >
-                <ArrowLeft size={16} className="mr-2 transition-transform group-hover:-translate-x-1" /> Back to Login
+            {/* View Toggle */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            {!isForgot ? (
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">{isSignup ? "Already have an account? " : "Don't have an account? "}</span>
+                <button type="button" onClick={() => setView(isSignup ? "login" : "signup")} className="font-bold text-foreground hover:underline underline-offset-4 transition-all">
+                  {isSignup ? "Sign In" : "Sign Up"}
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setView("login")} className="w-full flex justify-center items-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-all gap-2">
+                <ArrowLeft size={16} /> Back to Log In
               </button>
             )}
           </form>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center max-w-xs">
-          <p className="text-xs text-muted-foreground/50">
-            By continuing, you agree to Glint's Terms of Service and Privacy Policy.
-          </p>
-          <div className="text-[10px] text-muted-foreground/30 mt-2 font-mono">
-             All rights reserved © 2025
-          </div>
         </div>
       </div>
     </div>

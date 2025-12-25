@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Settings, CheckCircle, Grid, Bookmark, Zap, Edit3, LogOut, MapPin, Calendar, Share2, X, UserPlus, Users, Search } from "lucide-react";
+import { Settings, CheckCircle, Grid, Bookmark, Zap, Edit3, LogOut, MapPin, Calendar, Share2, X, UserPlus, Users, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { EditProfileModal } from "./EditProfileModal";
 import { FollowButton } from "./FollowButton";
-import { toast } from "sonner"; // Assuming you use toast
+import { toast } from "sonner";
 
 interface UserProfileProps {
   onOpenSettings: () => void;
@@ -54,9 +54,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
   };
 
   const handleShareProfile = () => {
-    // Generate the deep link
     const link = `${window.location.origin}?profile=${user?.id}`;
-    
     if (navigator.share) {
       navigator.share({
         title: `Check out ${profile?.username} on Glint`,
@@ -88,7 +86,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
         )}>
           
           {/* Banner Gradient */}
-          <div className="h-32 sm:h-48 w-full bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 relative">
+          <div className="h-32 sm:h-48 w-full bg-gradient-to-r from-primary/20 via-purple-600/20 to-accent/20 relative">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
             
             {/* Top Actions */}
@@ -110,7 +108,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
               <div className="relative group/avatar">
                 <div className={cn(
                   "absolute -inset-1 rounded-full blur opacity-50 transition-opacity duration-500 group-hover/avatar:opacity-100",
-                  profile.is_pro ? "bg-gradient-to-tr from-amber-400 to-yellow-600" : "bg-gradient-to-tr from-blue-500 to-purple-500"
+                  profile.is_pro ? "bg-gradient-to-tr from-amber-400 to-yellow-600" : "bg-gradient-to-tr from-primary to-accent"
                 )} />
                 <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full p-[4px] bg-background">
                   <img
@@ -171,14 +169,12 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
             <div className="flex justify-around md:justify-start md:gap-16">
               <StatItem label="Posts" value={posts.length} />
               
-              {/* Clickable Followers */}
               <StatItem 
                 label="Followers" 
                 value={followersCount} 
                 onClick={() => setActiveFollowsModal("followers")}
               />
               
-              {/* Clickable Following */}
               <StatItem 
                 label="Following" 
                 value={followingCount} 

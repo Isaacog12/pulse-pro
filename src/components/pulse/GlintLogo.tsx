@@ -7,7 +7,7 @@ interface GlintLogoProps {
 }
 
 export const GlintLogo = ({ size = "md", animated = false, className }: GlintLogoProps) => {
-  
+
   // Size mapping
   const sizeClasses = {
     sm: "w-6 h-6",
@@ -18,7 +18,7 @@ export const GlintLogo = ({ size = "md", animated = false, className }: GlintLog
 
   return (
     <div className={cn("relative flex items-center justify-center", sizeClasses[size], className)}>
-      
+
       {/* 1. The Glow (Background) */}
       <div className={cn(
         "absolute inset-0 bg-primary/20 blur-xl rounded-full",
@@ -49,7 +49,7 @@ export const GlintLogo = ({ size = "md", animated = false, className }: GlintLog
              C35 45, 45 35, 50 0 Z"
           fill="url(#glint-gradient)"
         />
-        
+
         {/* Optional: Smaller cross glint for detail */}
         <path
           d="M50 25 L53 47 L75 50 L53 53 L50 75 L47 53 L25 50 L47 47 Z"
