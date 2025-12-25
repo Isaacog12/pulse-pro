@@ -18,10 +18,10 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
-  
+
   // Follows Modal State
   const [activeFollowsModal, setActiveFollowsModal] = useState<"followers" | "following" | null>(null);
-  
+
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
@@ -72,23 +72,23 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
 
   return (
     <div className="max-w-5xl mx-auto pb-24 px-4 sm:px-6 relative animate-in fade-in duration-500">
-      
+
       {/* Background Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-primary/20 blur-[120px] rounded-full pointer-events-none -z-10" />
 
       {/* Profile Card */}
       <div className="relative mt-4 sm:mt-8 mb-8 group">
-        
+
         {/* Glass Container */}
         <div className={cn(
           "relative overflow-hidden rounded-[32px] bg-background/40 backdrop-blur-3xl border border-white/10 shadow-2xl transition-all duration-500",
           profile.is_pro && "border-amber-500/20 shadow-amber-500/5"
         )}>
-          
+
           {/* Banner Gradient */}
           <div className="h-32 sm:h-48 w-full bg-gradient-to-r from-primary/20 via-purple-600/20 to-accent/20 relative">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
-            
+
             {/* Top Actions */}
             <div className="absolute top-4 right-4 flex gap-2 z-20">
               <Button size="icon" variant="ghost" className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md border border-white/10 transition-colors" onClick={onOpenSettings}>
@@ -101,9 +101,9 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
           </div>
 
           <div className="px-6 pb-8 relative">
-            
+
             <div className="flex flex-col md:flex-row items-center md:items-end gap-6 -mt-12 md:-mt-16">
-              
+
               {/* Avatar */}
               <div className="relative group/avatar">
                 <div className={cn(
@@ -127,18 +127,18 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
               {/* Info Section */}
               <div className="flex-1 text-center md:text-left space-y-2 min-w-0 w-full">
                 <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
-                  
+
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center justify-center md:justify-start gap-2">
                       {profile.username}
-                      {profile.is_verified && <CheckCircle className="text-yellow-400 fill-blue-500/10" size={24} />}
+                      {profile.is_verified && <CheckCircle className="text-yellow-400 fill-blue-500/10" size={20} />}
                     </h1>
                     {profile.bio && (
                       <p className="text-muted-foreground text-sm sm:text-base mt-2 max-w-md mx-auto md:mx-0 leading-relaxed">
                         {profile.bio}
                       </p>
                     )}
-                    
+
                     {/* Metadata */}
                     <div className="flex items-center justify-center md:justify-start gap-4 mt-3 text-xs text-muted-foreground/60">
                       <span className="flex items-center gap-1"><MapPin size={12} /> Global</span>
@@ -148,8 +148,8 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
 
                   {/* Desktop Action Buttons */}
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={() => setShowEditModal(true)} 
+                    <Button
+                      onClick={() => setShowEditModal(true)}
                       className="bg-secondary/50 hover:bg-secondary text-foreground backdrop-blur-md border border-white/10 rounded-xl"
                     >
                       <Edit3 size={16} className="mr-2" /> Edit Profile
@@ -168,16 +168,16 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
             {/* Stats Row */}
             <div className="flex justify-around md:justify-start md:gap-16">
               <StatItem label="Posts" value={posts.length} />
-              
-              <StatItem 
-                label="Followers" 
-                value={followersCount} 
+
+              <StatItem
+                label="Followers"
+                value={followersCount}
                 onClick={() => setActiveFollowsModal("followers")}
               />
-              
-              <StatItem 
-                label="Following" 
-                value={followingCount} 
+
+              <StatItem
+                label="Following"
+                value={followingCount}
                 onClick={() => setActiveFollowsModal("following")}
               />
             </div>
@@ -189,17 +189,17 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
       {/* Sticky Tabs */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/5 mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 sm:rounded-2xl sm:border sm:top-4 transition-all">
         <div className="flex justify-center max-w-md mx-auto">
-          <TabButton 
-            active={activeTab === "posts"} 
-            onClick={() => setActiveTab("posts")} 
-            icon={Grid} 
-            label="Posts" 
+          <TabButton
+            active={activeTab === "posts"}
+            onClick={() => setActiveTab("posts")}
+            icon={Grid}
+            label="Posts"
           />
-          <TabButton 
-            active={activeTab === "saved"} 
-            onClick={() => setActiveTab("saved")} 
-            icon={Bookmark} 
-            label="Saved" 
+          <TabButton
+            active={activeTab === "saved"}
+            onClick={() => setActiveTab("saved")}
+            icon={Bookmark}
+            label="Saved"
           />
         </div>
       </div>
@@ -208,14 +208,14 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
       <div className="grid grid-cols-3 gap-1 sm:gap-4 pb-20">
         {displayPosts.length > 0 ? (
           displayPosts.map((post) => (
-            <div 
-              key={post.id} 
+            <div
+              key={post.id}
               className="group relative aspect-square bg-secondary/30 rounded-lg sm:rounded-2xl overflow-hidden cursor-pointer"
             >
-              <img 
-                src={post.image_url} 
-                alt="" 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+              <img
+                src={post.image_url}
+                alt=""
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -242,7 +242,7 @@ export const UserProfile = ({ onOpenSettings }: UserProfileProps) => {
       )}
 
       {activeFollowsModal && (
-        <FollowsListModal 
+        <FollowsListModal
           type={activeFollowsModal}
           userId={user.id}
           onClose={() => setActiveFollowsModal(null)}
@@ -270,7 +270,7 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      
+
       let userList: any[] = [];
       if (type === "followers") {
         const { data } = await supabase
@@ -295,7 +295,7 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
           .neq("id", currentUser.id)
           .not("id", "in", `(${existingIds.join(',')})`)
           .limit(5);
-        
+
         if (suggested) setSuggestions(suggested);
       }
 
@@ -308,7 +308,7 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
-      
+
       <div className="relative w-full max-w-md h-[80vh] bg-background/60 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/5">
@@ -322,7 +322,7 @@ const FollowsListModal = ({ type, userId, onClose }: FollowsListModalProps) => {
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
             <div className="p-4 space-y-4">
-              {[1,2,3].map(i => <div key={i} className="h-14 bg-white/5 rounded-2xl animate-pulse" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-white/5 rounded-2xl animate-pulse" />)}
             </div>
           ) : (
             <div className="pb-8">
@@ -382,7 +382,7 @@ const UserRow = ({ profile }: { profile: any }) => (
 );
 
 const StatItem = ({ label, value, onClick }: { label: string; value: number, onClick?: () => void }) => (
-  <div 
+  <div
     onClick={onClick}
     className={cn(
       "flex flex-col items-center md:items-start group transition-opacity",
