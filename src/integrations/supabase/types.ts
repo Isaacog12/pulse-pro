@@ -349,6 +349,7 @@ export type Database = {
           bio: string | null
           created_at: string | null
           id: string
+          is_private: boolean | null
           is_pro: boolean | null
           is_verified: boolean | null
           last_seen: string | null
@@ -361,6 +362,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id: string
+          is_private?: boolean | null
           is_pro?: boolean | null
           is_verified?: boolean | null
           last_seen?: string | null
@@ -373,6 +375,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          is_private?: boolean | null
           is_pro?: boolean | null
           is_verified?: boolean | null
           last_seen?: string | null

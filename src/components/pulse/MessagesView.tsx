@@ -32,13 +32,54 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ==========================================
+  // 1. Unified Realtime Listener & Data Fetching
+  // ==========================================
   useEffect(() => {
-    if (user) {
-      fetchConversations();
-      setupRealtimeSubscription();
-    }
+    if (!user) return;
+
+    // A. Initial Fetch
+    fetchConversations();
+
+    // B. Setup Realtime Subscription
+    const channel = supabase
+      .channel("messages-view-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          // Refresh list when a new message arrives (updates last msg / unread count)
+          fetchConversations();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "conversation_participants",
+          filter: `user_id=eq.${user.id}`, // <--- CRITICAL FIX: Listen for when YOU are added to a chat
+        },
+        () => {
+          // Refresh list when a new conversation starts
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    // C. Cleanup on Unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
+  // ==========================================
+  // 2. Fetch Logic (Unchanged)
+  // ==========================================
   const fetchConversations = async () => {
     if (!user) return;
 
@@ -103,19 +144,6 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
 
     setConversations(conversationsData);
     setLoading(false);
-  };
-
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel("messages-list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => fetchConversations()
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
   };
 
   const formatTime = (dateStr: string) => {

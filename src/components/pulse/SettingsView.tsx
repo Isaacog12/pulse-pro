@@ -110,7 +110,7 @@ export const SettingsView = ({ onBack }: SettingsViewProps) => {
       
       const { error } = await supabase
         .from("profiles")
-        .update({ is_private: value } as any)
+        .update({ is_private: value })
         .eq("id", user.id);
 
       if (error) {
