@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { MessageSquareDashed, Search, Plus, Loader2, Check, CheckCheck } from "lucide-react";
+import { MessageSquareDashed, Search, Plus, Loader2, Check, CheckCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { decryptMessage } from "@/lib/crypto"; // Import our crypto helper
 
 interface Conversation {
   id: string;
@@ -14,12 +15,12 @@ interface Conversation {
     avatar_url: string | null;
   };
   last_message?: {
-    content: string;
+    content: string; // We will overwrite this with decrypted text
     created_at: string;
     sender_id: string;
     read: boolean;
   };
-  unread_count: number; // We need this specific field
+  unread_count: number;
 }
 
 interface MessagesViewProps {
@@ -33,22 +34,24 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const [privateKey, setPrivateKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
+    // 1. Get Private Key immediately
+    const storedPriv = localStorage.getItem(`priv_key_${user.id}`);
+    if (storedPriv) setPrivateKey(storedPriv);
+
     fetchConversations();
 
-    // 1. Subscribe to DB Changes (New Messages or Read Status changes)
+    // 2. Realtime Subscriptions
     const dbChannel = supabase
       .channel("messages-list-updates")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "messages" },
-        () => {
-          // If a message is added OR marked as read, refresh the list to update badges
-          fetchConversations();
-        }
+        () => fetchConversations() // Refresh list on new message
       )
       .on(
         "postgres_changes",
@@ -57,7 +60,6 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
       )
       .subscribe();
 
-    // 2. Subscribe to Typing Indicators
     const presenceChannel = supabase.channel(`typing-status:${user.id}`)
       .on("broadcast", { event: "typing" }, (payload) => {
         const { conversation_id, is_typing } = payload.payload;
@@ -74,11 +76,17 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
     };
   }, [user]);
 
-  // --- MANUAL FETCH (FOOLPROOF) ---
+  // Re-fetch if private key loads late (rare but safe)
+  useEffect(() => {
+    if (privateKey && conversations.length > 0) {
+      fetchConversations();
+    }
+  }, [privateKey]);
+
   const fetchConversations = async () => {
     if (!user) return;
 
-    // A. Get all my conversations
+    // A. Get conversations
     const { data: myParticipations } = await supabase
       .from("conversation_participants")
       .select("conversation_id")
@@ -91,11 +99,10 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
     }
 
     const conversationIds = myParticipations.map((p) => p.conversation_id);
-    const conversationsData: Conversation[] = [];
+    const rawConversations: any[] = [];
 
-    // B. Loop through to get details & UNREAD COUNTS
+    // B. Fetch Data Loop
     for (const convId of conversationIds) {
-      // 1. Who am I talking to?
       const { data: otherParticipant } = await supabase
         .from("conversation_participants")
         .select("user_id")
@@ -105,24 +112,20 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
         .single();
 
       if (otherParticipant) {
-        // 2. Get their profile
         const { data: profile } = await supabase
           .from("profiles")
           .select("id, username, avatar_url")
           .eq("id", otherParticipant.user_id)
           .single();
 
-       // 3. Get Last Message
         const { data: lastMessage } = await supabase
           .from("messages")
           .select("content, created_at, sender_id, read")
           .eq("conversation_id", convId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle(); // <--- CHANGED FROM .single() TO .maybeSingle()
+          .maybeSingle();
 
-        // 4. COUNT UNREAD MESSAGES (The Logic You Asked For)
-        // Count messages where: Conversation matches AND Read is false AND Sender is NOT me
         const { count } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
@@ -131,32 +134,62 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
           .neq("sender_id", user.id);
 
         if (profile) {
-          conversationsData.push({
+          rawConversations.push({
             id: convId,
             updated_at: lastMessage?.created_at || new Date().toISOString(),
-            // @ts-ignore
             other_user: profile,
-            // @ts-ignore
             last_message: lastMessage,
-            unread_count: count || 0, // Store the count
+            unread_count: count || 0,
           });
         }
       }
     }
 
+    // C. DECRYPT PREVIEWS (The Magic Step)
+    // We process all conversations in parallel to keep it fast
+    const decryptedConversations = await Promise.all(
+      rawConversations.map(async (conv) => {
+        if (!conv.last_message) return conv;
+
+        // Get key from local state or storage directly
+        const myPrivKey = privateKey || localStorage.getItem(`priv_key_${user.id}`);
+        
+        let previewText = conv.last_message.content;
+
+        // Check if it looks like a media file placeholder first
+        if (previewText.startsWith("📷") || previewText.startsWith("🎥") || previewText.startsWith("📎")) {
+             // Leave as is
+        } else if (myPrivKey) {
+          // Attempt Decryption
+          const isSender = conv.last_message.sender_id === user.id;
+          previewText = await decryptMessage(conv.last_message.content, myPrivKey, isSender);
+        } else {
+          // No key found? Show generic text
+          previewText = "🔒 Encrypted Message";
+        }
+
+        return {
+          ...conv,
+          last_message: {
+            ...conv.last_message,
+            content: previewText,
+          },
+        };
+      })
+    );
+
     // Sort by newest
-    conversationsData.sort(
+    decryptedConversations.sort(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
 
-    setConversations(conversationsData);
+    setConversations(decryptedConversations);
     setLoading(false);
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    // If today, show time. If older, show date.
     if (now.toDateString() === date.toDateString()) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
@@ -217,7 +250,6 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
               onClick={() => onSelectConversation(conv.id, conv.other_user)}
               className={cn(
                 "group relative p-4 rounded-[24px] flex items-center gap-4 cursor-pointer transition-all duration-300 border",
-                // Highlight row if unread
                 conv.unread_count > 0
                   ? "bg-secondary/40 backdrop-blur-xl border-primary/20 shadow-lg shadow-primary/5" 
                   : "bg-background/20 border-white/5 hover:bg-white/5 hover:border-white/10"
@@ -233,7 +265,6 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
                   />
                 </div>
                 
-                {/* --- UNREAD BADGE HERE --- */}
                 {conv.unread_count > 0 && (
                   <div className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-background shadow-sm animate-in zoom-in">
                     {conv.unread_count}
