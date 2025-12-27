@@ -31,14 +31,22 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  
+  // NEW: State for typing indicator
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // NEW: Ref for debouncing typing
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchMessages();
     markMessagesAsRead();
     checkOtherUserStatus();
+    
     const cleanup = setupRealtimeSubscription();
     const statusInterval = setInterval(checkOtherUserStatus, 30000);
+    
     return () => {
       cleanup();
       clearInterval(statusInterval);
@@ -47,10 +55,12 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isOtherUserTyping]); // Scroll when typing starts too
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   const fetchMessages = async () => {
@@ -87,22 +97,69 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
     }
   };
 
+  // UPDATED: Now handles Inserts, Updates, AND Typing Broadcasts
   const setupRealtimeSubscription = () => {
     const channel = supabase
       .channel(`chat-${conversationId}`)
+      // 1. Listen for NEW messages
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => [...prev, newMsg]);
+          
+          // If message is from other user, mark read and stop typing animation
           if (newMsg.sender_id !== user?.id) {
+            setIsOtherUserTyping(false); // They sent it, so they stopped typing
             supabase.from("messages").update({ read: true }).eq("id", newMsg.id);
           }
         }
       )
+      // 2. Listen for UPDATES (Blue Ticks / Read Receipts)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          setMessages((prev) => prev.map(msg => msg.id === payload.new.id ? (payload.new as Message) : msg));
+        }
+      )
+      // 3. Listen for TYPING events
+      .on("broadcast", { event: "typing" }, (payload) => {
+        // Only care if the OTHER user is typing
+        if (payload.payload.user_id === otherUser.id) {
+          setIsOtherUserTyping(payload.payload.is_typing);
+        }
+      })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
+  };
+
+  // NEW: Helper to broadcast typing status
+  const broadcastTyping = async (isTyping: boolean) => {
+    if (!user) return;
+    await supabase.channel(`chat-${conversationId}`).send({
+      type: "broadcast",
+      event: "typing",
+      payload: { user_id: user.id, is_typing: isTyping }
+    });
+  };
+
+  // NEW: Handle input change to trigger typing
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+
+    // 1. Send "I am typing"
+    broadcastTyping(true);
+
+    // 2. Clear old timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    // 3. Set new timeout to stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      broadcastTyping(false);
+    }, 2000);
   };
 
   const handleSend = async () => {
@@ -110,6 +167,10 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
     setSending(true);
     const content = newMessage.trim();
     setNewMessage("");
+    
+    // Stop typing indicator immediately when sending
+    broadcastTyping(false); 
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
@@ -128,7 +189,6 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
     return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Grouping logic
   const groupedMessages: { date: string; messages: Message[] }[] = [];
   messages.forEach((msg) => {
     const dateKey = new Date(msg.created_at).toDateString();
@@ -145,7 +205,7 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
         <div className="absolute bottom-10 left-10 w-64 h-64 bg-blue-500/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* Header - Glass Bar */}
+      {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 z-20">
         <div className="bg-background/40 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
@@ -171,9 +231,14 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
             
             <div className="flex flex-col">
               <span className="font-semibold text-sm text-foreground">{otherUser.username}</span>
-              <span className={cn("text-[10px] font-medium", otherUserOnline ? "text-green-500" : "text-muted-foreground")}>
-                {otherUserOnline ? "Active now" : "Offline"}
-              </span>
+              {/* UPDATED: Show Typing OR Status */}
+              {isOtherUserTyping ? (
+                <span className="text-[10px] font-medium text-primary animate-pulse">typing...</span>
+              ) : (
+                <span className={cn("text-[10px] font-medium", otherUserOnline ? "text-green-500" : "text-muted-foreground")}>
+                  {otherUserOnline ? "Active now" : "Offline"}
+                </span>
+              )}
             </div>
           </div>
 
@@ -208,7 +273,7 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
               </div>
               
               <div className="space-y-3">
-                {group.messages.map((msg, i) => {
+                {group.messages.map((msg) => {
                   const isOwn = msg.sender_id === user?.id;
                   
                   return (
@@ -232,16 +297,28 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
                           isOwn ? "text-blue-100/70" : "text-muted-foreground/60"
                         )}>
                           <span className="text-[10px]">{formatTime(msg.created_at)}</span>
+                          {/* UPDATED: Checks for Read Status */}
                           {isOwn && (
                              msg.read 
-                               ? <CheckCheck size={12} className="text-blue-100" />
-                               : <Check size={12} />
+                               ? <CheckCheck size={14} className="text-white" /> // Blue tick (White on blue bg)
+                               : <Check size={14} /> // Single tick
                           )}
                         </div>
                       </div>
                     </div>
                   );
                 })}
+                
+                {/* NEW: Typing Bubble Indicator inside chat flow */}
+                {isOtherUserTyping && (
+                  <div className="flex w-full justify-start animate-in fade-in slide-in-from-bottom-2">
+                    <div className="bg-secondary/40 backdrop-blur-md border border-white/5 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce"></span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -249,7 +326,7 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - Floating Glass Island */}
+      {/* Input Area */}
       <div className="p-4 z-20">
         <div className="bg-background/60 backdrop-blur-2xl border border-white/10 rounded-[24px] p-2 flex items-end gap-2 shadow-lg">
           
@@ -262,7 +339,7 @@ export const ChatView = ({ conversationId, otherUser, onBack }: ChatViewProps) =
           <Input
             placeholder="Type a message..."
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleTyping} // UPDATED to trigger broadcast
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
             className="flex-1 min-h-[44px] max-h-32 py-3 bg-transparent border-none focus-visible:ring-0 placeholder:text-muted-foreground/50 resize-none overflow-hidden"
           />
