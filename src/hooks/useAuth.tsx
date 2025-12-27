@@ -76,10 +76,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // --- THIS IS THE FIX ---
-    // We changed this from `${window.location.origin}/` to `${window.location.origin}/auth`
-    const redirectUrl = `${window.location.origin}/auth`; 
+    // --- FIX STARTS HERE ---
     
+    // 1. Check if we are running locally or on the web
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    
+    // 2. Set the redirect URL explicitly
+    // If Local: Use whatever port you are currently on (e.g., http://localhost:5173/auth)
+    // If Production: FORCE "https://glint-pro.vercel.app/auth"
+    const redirectUrl = isLocal 
+      ? `${window.location.origin}/auth`
+      : "https://glint-pro.vercel.app/";
+      
+    console.log("Signing up with redirect URL:", redirectUrl); // Helpful for debugging
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
