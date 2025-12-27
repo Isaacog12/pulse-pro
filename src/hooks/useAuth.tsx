@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // 2. Set the redirect URL explicitly
     // If Local: Use whatever port you are currently on (e.g., http://localhost:5173/auth)
-    // If Production: FORCE "https://glint-pro.vercel.app/auth"
+    // If Production: FORCE "https://glint-pro.vercel.app/"
     const redirectUrl = isLocal 
       ? `${window.location.origin}/auth`
       : "https://glint-pro.vercel.app/";
