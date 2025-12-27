@@ -156,8 +156,9 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
         
         let previewText = conv.last_message.content;
 
-        // Check if it looks like a media file placeholder first
-        if (previewText.startsWith("📷") || previewText.startsWith("🎥") || previewText.startsWith("📎")) {
+       // Check if it looks like a media file placeholder first
+        // ADDED: || previewText.startsWith("🎤")
+        if (previewText.startsWith("📷") || previewText.startsWith("🎥") || previewText.startsWith("📎") || previewText.startsWith("🎤")) {
              // Leave as is
         } else if (myPrivKey) {
           // Attempt Decryption
