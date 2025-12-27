@@ -112,14 +112,14 @@ export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesVie
           .eq("id", otherParticipant.user_id)
           .single();
 
-        // 3. Get Last Message
+       // 3. Get Last Message
         const { data: lastMessage } = await supabase
           .from("messages")
           .select("content, created_at, sender_id, read")
           .eq("conversation_id", convId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle(); // <--- CHANGED FROM .single() TO .maybeSingle()
 
         // 4. COUNT UNREAD MESSAGES (The Logic You Asked For)
         // Count messages where: Conversation matches AND Read is false AND Sender is NOT me
