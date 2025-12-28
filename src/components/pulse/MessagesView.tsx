@@ -1,324 +1,185 @@
 import { useState, useEffect } from "react";
-import { MessageSquareDashed, Search, Plus, Loader2, Check, CheckCheck, Lock } from "lucide-react";
+import { MessageSquareDashed, Search, Plus, Loader2, Check, CheckCheck, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { decryptMessage } from "@/lib/crypto"; // Import our crypto helper
+import { decryptMessage } from "@/lib/crypto";
+import { NewChatDialog } from "./NewChatDialog";
 
 interface Conversation {
   id: string;
   updated_at: string;
-  other_user: {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-  };
-  last_message?: {
-    content: string; // We will overwrite this with decrypted text
-    created_at: string;
-    sender_id: string;
-    read: boolean;
-  };
+  other_user: { id: string; username: string; avatar_url: string | null; };
+  last_message?: { content: string; created_at: string; sender_id: string; read: boolean; };
   unread_count: number;
 }
 
 interface MessagesViewProps {
-  onSelectConversation: (conversationId: string, otherUser: Conversation["other_user"]) => void;
-  onNewMessage: () => void;
+  onSelectConversation: (conversationId: string, otherUser: any) => void;
+  onNewMessage?: () => void;
 }
 
-export const MessagesView = ({ onSelectConversation, onNewMessage }: MessagesViewProps) => {
+export const MessagesView = ({ onSelectConversation }: MessagesViewProps) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [privateKey, setPrivateKey] = useState<string | null>(null);
 
+  // --- 1. SETUP & AUTO-SYNC ---
   useEffect(() => {
     if (!user) return;
+    autoSyncKeys();
 
-    // 1. Get Private Key immediately
-    const storedPriv = localStorage.getItem(`priv_key_${user.id}`);
-    if (storedPriv) setPrivateKey(storedPriv);
-
-    fetchConversations();
-
-    // 2. Realtime Subscriptions
-    const dbChannel = supabase
-      .channel("messages-list-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        () => fetchConversations() // Refresh list on new message
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "conversation_participants", filter: `user_id=eq.${user.id}` },
-        () => fetchConversations()
-      )
+    const channel = supabase.channel("messages-view")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => fetchConversations())
       .subscribe();
 
-    const presenceChannel = supabase.channel(`typing-status:${user.id}`)
-      .on("broadcast", { event: "typing" }, (payload) => {
-        const { conversation_id, is_typing } = payload.payload;
-        setTypingUsers((prev) => ({
-          ...prev,
-          [conversation_id]: is_typing,
-        }));
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(dbChannel);
-      supabase.removeChannel(presenceChannel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Re-fetch if private key loads late (rare but safe)
+  // Re-fetch conversations whenever the key changes (to try decrypting again)
   useEffect(() => {
-    if (privateKey && conversations.length > 0) {
-      fetchConversations();
-    }
+    if (privateKey) fetchConversations();
   }, [privateKey]);
 
+  // --- 2. AUTOMATIC KEY SYNC ---
+  const autoSyncKeys = async () => {
+    try {
+        const localKey = localStorage.getItem(`priv_key_${user?.id}`);
+        const { data } = await supabase.from("profiles").select("private_key").eq("id", user?.id).single();
+        const cloudKey = data?.private_key;
+
+        if (localKey) {
+            setPrivateKey(localKey);
+            // If local exists but cloud is empty, BACK IT UP silently
+            if (!cloudKey) {
+                console.log("Backing up key to cloud...");
+                await supabase.from("profiles").update({ private_key: localKey }).eq("id", user?.id);
+            }
+        } else if (cloudKey) {
+            // If local is missing but cloud exists, DOWNLOAD IT silently
+            console.log("Restoring key from cloud...");
+            localStorage.setItem(`priv_key_${user?.id}`, cloudKey);
+            setPrivateKey(cloudKey);
+        }
+    } catch (e) {
+        console.error("Auto-sync failed:", e);
+    }
+    
+    fetchConversations();
+  };
+
+  // --- 3. FETCH & DECRYPT ---
   const fetchConversations = async () => {
     if (!user) return;
+    try {
+      const { data: rawData, error } = await supabase.rpc('get_conversations_preview', { current_user_id: user.id });
+      if (error) throw error;
 
-    // A. Get conversations
-    const { data: myParticipations } = await supabase
-      .from("conversation_participants")
-      .select("conversation_id")
-      .eq("user_id", user.id);
+      const formattedData = (rawData as any[]).map((item) => ({
+        id: item.conversation_id,
+        updated_at: item.last_message_json?.created_at || new Date().toISOString(),
+        other_user: item.other_user_json,
+        last_message: item.last_message_json,
+        unread_count: item.unread_count || 0
+      })).filter(c => c.other_user);
 
-    if (!myParticipations?.length) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
+      // Decrypt
+      const decrypted = await Promise.all(formattedData.map(async (c) => {
+          if (!c.last_message) return c;
+          let text = c.last_message.content;
+          
+          const pk = privateKey || localStorage.getItem(`priv_key_${user.id}`);
+          
+          // CHECK FOR VOICE MESSAGE HERE
+          const isSystem = text.startsWith("📷") || 
+                           text.startsWith("🎤") || // <--- Voice Message Check
+                           text.startsWith("🎥") || 
+                           text.startsWith("📎") ||
+                           text === "deleted";
 
-    const conversationIds = myParticipations.map((p) => p.conversation_id);
-    const rawConversations: any[] = [];
-
-    // B. Fetch Data Loop
-    for (const convId of conversationIds) {
-      const { data: otherParticipant } = await supabase
-        .from("conversation_participants")
-        .select("user_id")
-        .eq("conversation_id", convId)
-        .neq("user_id", user.id)
-        .limit(1)
-        .single();
-
-      if (otherParticipant) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, username, avatar_url")
-          .eq("id", otherParticipant.user_id)
-          .single();
-
-        const { data: lastMessage } = await supabase
-          .from("messages")
-          .select("content, created_at, sender_id, read")
-          .eq("conversation_id", convId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("conversation_id", convId)
-          .eq("read", false)
-          .neq("sender_id", user.id);
-
-        if (profile) {
-          rawConversations.push({
-            id: convId,
-            updated_at: lastMessage?.created_at || new Date().toISOString(),
-            other_user: profile,
-            last_message: lastMessage,
-            unread_count: count || 0,
-          });
-        }
-      }
-    }
-
-    // C. DECRYPT PREVIEWS (The Magic Step)
-    // We process all conversations in parallel to keep it fast
-    const decryptedConversations = await Promise.all(
-      rawConversations.map(async (conv) => {
-        if (!conv.last_message) return conv;
-
-        // Get key from local state or storage directly
-        const myPrivKey = privateKey || localStorage.getItem(`priv_key_${user.id}`);
-        
-        let previewText = conv.last_message.content;
-
-       // Check if it looks like a media file placeholder first
-        // ADDED: || previewText.startsWith("🎤")
-        if (previewText.startsWith("📷") || previewText.startsWith("🎥") || previewText.startsWith("📎") || previewText.startsWith("🎤")) {
-             // Leave as is
-        } else if (myPrivKey) {
-          // Attempt Decryption
-          const isSender = conv.last_message.sender_id === user.id;
-          previewText = await decryptMessage(conv.last_message.content, myPrivKey, isSender);
-        } else {
-          // No key found? Show generic text
-          previewText = "🔒 Encrypted Message";
-        }
-
-        return {
-          ...conv,
-          last_message: {
-            ...conv.last_message,
-            content: previewText,
-          },
-        };
-      })
-    );
-
-    // Sort by newest
-    decryptedConversations.sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
-
-    setConversations(decryptedConversations);
-    setLoading(false);
+          if (pk && !isSystem) {
+             const decryptedText = await decryptMessage(text, pk, c.last_message.sender_id === user.id);
+             // If decrypt returns the same encrypted string, it failed.
+             if (decryptedText !== text && !decryptedText.startsWith("🔒")) {
+                 text = decryptedText;
+             }
+          }
+          
+          if (text === "deleted") text = "🚫 Message deleted";
+          
+          return { ...c, last_message: { ...c.last_message, content: text } };
+      }));
+  
+      decrypted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      setConversations(decrypted as Conversation[]);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    if (now.toDateString() === date.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return date.toLocaleDateString();
-  };
-
-  const filteredConversations = conversations.filter((conv) =>
-    conv.other_user.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // --- 4. RENDER ---
+  const filtered = conversations.filter(c => c.other_user.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="max-w-2xl mx-auto pb-24 px-4 sm:px-6 animate-in fade-in duration-500">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 animate-in fade-in duration-500">
       
       {/* HEADER */}
-      <div className="flex items-center justify-between py-6 mb-2 sticky top-0 z-20 bg-background/0 backdrop-blur-sm -mx-4 px-4">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-          Messages
-        </h2>
-        <button
-          onClick={onNewMessage}
-          className="p-3 rounded-full bg-gradient-to-tr from-primary to-accent text-white shadow-lg hover:shadow-primary/20 hover:scale-105 transition-all active:scale-95"
-        >
-          <Plus size={20} strokeWidth={3} />
-        </button>
+      <div className="flex items-center justify-between py-6 mb-2 sticky top-0 z-20 bg-background/80 backdrop-blur-md -mx-4 px-4">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Messages</h2>
+        <NewChatDialog onStartChat={(id, user) => onSelectConversation(id, user)}>
+            <button className="p-3 rounded-full bg-gradient-to-tr from-primary to-accent text-white shadow-lg hover:shadow-primary/20 hover:scale-105 transition-all">
+                <Plus size={20} strokeWidth={3} />
+            </button>
+        </NewChatDialog>
       </div>
 
       {/* SEARCH */}
-      <div className="relative mb-6 group">
-        <div className="relative bg-secondary/30 border border-white/5 rounded-2xl flex items-center shadow-inner group-focus-within:border-primary/30 group-focus-within:bg-secondary/50 transition-all duration-300">
-          <Search className="ml-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
-          <Input
-            placeholder="Search messages..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-3 h-12 bg-transparent border-none focus-visible:ring-0 placeholder:text-muted-foreground/50 text-base"
-          />
-        </div>
+      <div className="relative mb-6">
+         <div className="bg-secondary/30 border border-white/5 rounded-2xl flex items-center p-1">
+            <Search className="ml-3 text-muted-foreground" size={18} />
+            <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search chats..." className="border-none bg-transparent focus-visible:ring-0" />
+         </div>
       </div>
 
       {/* LIST */}
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-primary" size={32} />
-        </div>
-      ) : filteredConversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 text-muted-foreground/50">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-secondary/50 to-transparent flex items-center justify-center mb-6 border border-white/5">
-            <MessageSquareDashed size={40} className="stroke-[1.5]" />
-          </div>
-          <p className="text-lg font-medium text-foreground/80">No messages yet</p>
-          <p className="text-sm">Start a conversation with someone!</p>
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/50">
+           <MessageSquareDashed size={48} className="mb-4 opacity-20" />
+           <p>No messages yet</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredConversations.map((conv) => (
-            <div
-              key={conv.id}
-              onClick={() => onSelectConversation(conv.id, conv.other_user)}
-              className={cn(
-                "group relative p-4 rounded-[24px] flex items-center gap-4 cursor-pointer transition-all duration-300 border",
-                conv.unread_count > 0
-                  ? "bg-secondary/40 backdrop-blur-xl border-primary/20 shadow-lg shadow-primary/5" 
-                  : "bg-background/20 border-white/5 hover:bg-white/5 hover:border-white/10"
-              )}
-            >
-              {/* AVATAR + BADGE */}
-              <div className="relative flex-shrink-0">
-                <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-white/10 to-transparent group-hover:from-primary/50 group-hover:to-accent/50 transition-colors">
-                  <img
-                    src={conv.other_user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user.id}`}
-                    alt={conv.other_user.username}
-                    className="w-full h-full rounded-full object-cover bg-secondary"
-                  />
+       <div className="space-y-3 pb-24">
+          {filtered.map(c => (
+             <div key={c.id} onClick={() => onSelectConversation(c.id, c.other_user)}
+               className={cn("group p-4 rounded-[24px] flex items-center gap-4 cursor-pointer border transition-all duration-300",
+                 c.unread_count > 0 ? "bg-secondary/40 border-primary/20 shadow-lg" : "bg-background/20 border-white/5 hover:bg-white/5"
+               )}>
+                <div className="relative">
+                   <img src={c.other_user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.other_user.id}`} className="w-14 h-14 rounded-full object-cover bg-secondary" />
+                   {c.unread_count > 0 && <div className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-background">{c.unread_count}</div>}
                 </div>
-                
-                {conv.unread_count > 0 && (
-                  <div className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-background shadow-sm animate-in zoom-in">
-                    {conv.unread_count}
-                  </div>
-                )}
-              </div>
-
-              {/* CONTENT */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className={cn(
-                    "text-base transition-colors",
-                    conv.unread_count > 0 ? "font-bold text-foreground" : "font-semibold text-foreground/90"
-                  )}>
-                    {conv.other_user.username}
-                  </p>
-                  {conv.last_message && (
-                    <span className={cn(
-                      "text-[10px] whitespace-nowrap ml-2",
-                      conv.unread_count > 0 ? "text-primary font-bold" : "text-muted-foreground/60 font-medium"
-                    )}>
-                      {formatTime(conv.last_message.created_at)}
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center mb-0.5">
+                        <h4 className={cn("text-base truncate", c.unread_count > 0 ? "font-bold text-foreground" : "font-semibold text-foreground/90")}>{c.other_user.username}</h4>
+                        {c.last_message && <span className={cn("text-[10px]", c.unread_count > 0 ? "text-primary font-bold" : "text-muted-foreground/60")}>{new Date(c.last_message.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <p className={cn("text-sm truncate opacity-70 flex-1 pr-4", c.unread_count > 0 && "opacity-100 font-medium text-foreground")}>
+                            {c.last_message?.sender_id === user?.id && <span className="opacity-60">You: </span>}
+                            {/* Visual Logic for Encrypted vs Decrypted */}
+                            {c.last_message?.content.startsWith("🔒") 
+                                ? <span className="flex items-center gap-1 text-red-400 italic"><ShieldAlert size={12}/> Encrypted</span> 
+                                : c.last_message?.content || "No messages yet"}
+                        </p>
+                        {c.last_message?.sender_id === user?.id && <span className={cn(c.last_message.read ? "text-blue-400" : "text-muted-foreground/40")}>{c.last_message.read ? <CheckCheck size={14} /> : <Check size={14} />}</span>}
+                    </div>
                 </div>
-                
-                <div className="flex items-center gap-1.5">
-                  {/* READ RECEIPT (If I sent the last message) */}
-                  {conv.last_message?.sender_id === user?.id && (
-                    <span className={cn("flex-shrink-0", conv.last_message.read ? "text-blue-400" : "text-muted-foreground/60")}>
-                      {conv.last_message.read ? <CheckCheck size={14} /> : <Check size={14} />}
-                    </span>
-                  )}
-
-                  <p className={cn(
-                    "text-sm truncate pr-4 flex-1",
-                    conv.unread_count > 0 ? "text-foreground font-semibold" : "text-muted-foreground"
-                  )}>
-                    {/* TYPING INDICATOR vs LAST MESSAGE */}
-                    {typingUsers[conv.id] ? (
-                      <span className="text-primary italic animate-pulse">Typing...</span>
-                    ) : (
-                      <>
-                        {conv.last_message?.sender_id === user?.id && <span className="opacity-60 font-normal">You: </span>}
-                        {conv.last_message?.content}
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
+             </div>
           ))}
-        </div>
+       </div>
       )}
     </div>
   );
