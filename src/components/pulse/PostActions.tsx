@@ -1,7 +1,5 @@
 import { Heart, MessageSquare, Send, Bookmark, MoreVertical, Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 interface PostActionsProps {
   liked: boolean;
@@ -12,7 +10,7 @@ interface PostActionsProps {
   onLike: () => void;
   onSave: () => void;
   onViewComments: () => void;
-  onShare: () => void;
+  onShare: () => void; // This is a function passed from PostCard
   onMenuToggle: () => void;
   showMenu: boolean;
   isOwnPost: boolean;
@@ -28,24 +26,15 @@ export const PostActions = ({
   onLike,
   onSave,
   onViewComments,
-  onShare,
+  onShare, // We just use this
   onMenuToggle,
   showMenu,
   isOwnPost,
   onDelete,
 }: PostActionsProps) => {
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/post/${onShare}`;
-    if (navigator.share) {
-      navigator.share({
-        title: "Check out this post on Glint",
-        url: shareUrl,
-      });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      toast.success("Post link copied!");
-    }
-  };
+
+  // ⚠️ Removed the redundant 'handleShare' logic here. 
+  // We use the 'onShare' prop directly on the buttons below.
 
   return (
     <div className="flex items-center justify-between px-4 py-3">
@@ -84,8 +73,9 @@ export const PostActions = ({
           <span className="text-sm font-medium">{commentsCount}</span>
         </button>
 
+        {/* ✅ FIX: Call onShare directly */}
         <button
-          onClick={handleShare}
+          onClick={onShare} 
           className="transition-all duration-200 hover:scale-110 active:scale-95"
         >
           <Send size={22} className="text-foreground hover:text-primary transition-colors" />
@@ -120,8 +110,9 @@ export const PostActions = ({
 
           {showMenu && (
             <div className="absolute right-0 bottom-full mb-2 w-48 bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl overflow-hidden z-50">
+              {/* ✅ FIX: Call onShare directly */}
               <button
-                onClick={handleShare}
+                onClick={onShare}
                 className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3"
               >
                 <Share2 size={16} />
