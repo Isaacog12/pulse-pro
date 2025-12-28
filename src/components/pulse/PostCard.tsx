@@ -77,10 +77,21 @@ export const PostCard = ({
     setShowMenu(false);
   };
 
-  const handleShare = () => {
-    const link = `${window.location.origin}?post=${post.id}`;
-    // The share logic is handled in PostActions component
-  };
+const handleShare = async () => {
+  const link = `${window.location.origin}/post/${post.id}`;
+
+  if (navigator.share) {
+    await navigator.share({
+      title: "Glint",
+      text: post.caption ?? "Check out this post on Glint",
+      url: link,
+    });
+  } else {
+    await navigator.clipboard.writeText(link);
+  }
+};
+
+
 
   const togglePlayPause = () => {
     if (videoRef.current) {
