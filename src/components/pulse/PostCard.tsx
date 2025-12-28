@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePostInteractions } from "@/hooks/usePostInteractions";
 import { PostHeader } from "./PostHeader";
 import { PostActions } from "./PostActions";
+import { toast } from "sonner";
 
 interface Post {
   id: string;
@@ -81,13 +82,18 @@ const handleShare = async () => {
   const link = `${window.location.origin}/post/${post.id}`;
 
   if (navigator.share) {
-    await navigator.share({
-      title: "Glint",
-      text: post.caption ?? "Check out this post on Glint",
-      url: link,
-    });
+    try {
+      await navigator.share({
+        title: "Glint",
+        text: post.caption ?? "Check out this post on Glint",
+        url: link,
+      });
+    } catch (err) {
+      console.log("Share cancelled by user"); // Prevents error if they close the menu
+    }
   } else {
     await navigator.clipboard.writeText(link);
+    toast.success("Link copied to clipboard!"); // Visual feedback
   }
 };
 
