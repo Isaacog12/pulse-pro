@@ -316,7 +316,8 @@ export const ChatView = ({ conversationId, otherUser, onBack, isGroup = false }:
           );
         })}
         <div ref={messagesEndRef} />
-      </div>
+   
+     </div>
 
       {/* FOOTER: REPLYING / EDITING INDICATORS */}
       {(replyingTo || editingMessage) && (
